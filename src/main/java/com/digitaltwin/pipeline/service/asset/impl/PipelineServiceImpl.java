@@ -2,6 +2,7 @@ package com.digitaltwin.pipeline.service.asset.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.digitaltwin.pipeline.common.BusinessException;
@@ -109,5 +110,27 @@ public class PipelineServiceImpl extends ServiceImpl<PipelineMapper, Pipeline> i
         result.setManholes(manholes);
 
         return result;
+    }
+
+    @Override
+    public List<Pipeline> filterList(String areaCode, Integer pipelineType, String keyword, Integer status, Integer limit) {
+        LambdaQueryWrapper<Pipeline> wrapper = new LambdaQueryWrapper<>();
+        if (StrUtil.isNotBlank(areaCode)) {
+            wrapper.eq(Pipeline::getAreaCode, areaCode);
+        }
+        if (pipelineType != null) {
+            wrapper.eq(Pipeline::getPipelineType, pipelineType);
+        }
+        if (StrUtil.isNotBlank(keyword)) {
+            wrapper.and(w -> w.like(Pipeline::getPipelineCode, keyword)
+                    .or().like(Pipeline::getPipelineName, keyword)
+                    .or().like(Pipeline::getRoadName, keyword));
+        }
+        if (status != null) {
+            wrapper.eq(Pipeline::getStatus, status);
+        }
+        wrapper.orderByDesc(Pipeline::getId);
+        wrapper.last("LIMIT " + limit);
+        return baseMapper.selectList(wrapper);
     }
 }

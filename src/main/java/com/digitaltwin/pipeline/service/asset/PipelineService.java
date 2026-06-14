@@ -25,4 +25,6 @@ public interface PipelineService extends IService<Pipeline> {
     List<Pipeline> selectByAreaAndType(String areaCode, Integer pipelineType);
 
     TopologyResultDTO queryTopology(String areaCode, Integer pipelineType, String nodeCode);
+
+    List<Pipeline> filterList(String areaCode, Integer pipelineType, String keyword, Integer status, Integer limit);
 }

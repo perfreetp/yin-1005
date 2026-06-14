@@ -3,12 +3,14 @@ package com.digitaltwin.pipeline.controller.construction;
 import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.construction.ExcavationDTO;
+import com.digitaltwin.pipeline.dto.construction.ExcavationImpactAssessmentDTO;
 import com.digitaltwin.pipeline.dto.construction.ExcavationQueryDTO;
 import com.digitaltwin.pipeline.dto.construction.ExcavationReviewResultDTO;
 import com.digitaltwin.pipeline.entity.construction.ExcavationApplication;
 import com.digitaltwin.pipeline.entity.construction.PipelineConflict;
 import com.digitaltwin.pipeline.mapper.construction.PipelineConflictMapper;
 import com.digitaltwin.pipeline.service.construction.ExcavationApplicationService;
+import com.digitaltwin.pipeline.service.construction.ExcavationImpactService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ public class ExcavationController {
 
     private final ExcavationApplicationService excavationService;
     private final PipelineConflictMapper conflictMapper;
+    private final ExcavationImpactService impactService;
 
     @Operation(summary = "分页查询开挖申请列表")
     @GetMapping("/page")
@@ -79,5 +82,24 @@ public class ExcavationController {
     @GetMapping("/{id}/conflicts")
     public Result<List<PipelineConflict>> getConflicts(@PathVariable Long id) {
         return Result.success(conflictMapper.selectByApplicationId(id));
+    }
+
+    @Operation(summary = "【增强】开挖影响范围综合评估（含管线/阀门/井盖/道路/部门完整信息）")
+    @GetMapping("/{id}/impact-assessment")
+    public Result<ExcavationImpactAssessmentDTO> impactAssessment(@PathVariable Long id) {
+        return Result.success(impactService.comprehensiveAssessment(id));
+    }
+
+    @Operation(summary = "【增强】生成影响评估文字报告")
+    @GetMapping("/{id}/impact-report")
+    public Result<String> impactReport(@PathVariable Long id) {
+        return Result.success(impactService.generateImpactReport(id));
+    }
+
+    @Operation(summary = "【增强】提交审批（自动触发综合评估）")
+    @PostMapping("/{id}/submit")
+    public Result<ExcavationImpactAssessmentDTO> submitForReview(@PathVariable Long id) {
+        impactService.submitForReview(id);
+        return Result.success(impactService.comprehensiveAssessment(id));
     }
 }

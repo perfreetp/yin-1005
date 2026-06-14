@@ -3,8 +3,11 @@ package com.digitaltwin.pipeline.controller.inspection;
 import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.inspection.InspectionRouteQueryDTO;
+import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleDTO;
+import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleQueryDTO;
 import com.digitaltwin.pipeline.entity.inspection.InspectionRoute;
 import com.digitaltwin.pipeline.service.inspection.InspectionRouteService;
+import com.digitaltwin.pipeline.service.inspection.SmartInspectionScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class InspectionRouteController {
 
     private final InspectionRouteService routeService;
+    private final SmartInspectionScheduleService smartScheduleService;
 
     @Operation(summary = "分页查询巡检路线")
     @GetMapping("/page")
@@ -36,5 +40,11 @@ public class InspectionRouteController {
                                             @RequestParam(required = false) Integer pipelineType,
                                             @RequestParam(defaultValue = "1") Integer routeType) {
         return Result.success(routeService.generateRoute(areaCode, pipelineType, routeType));
+    }
+
+    @Operation(summary = "【增强】智能巡检调度：按区域/风险/紧急程度排优先级，生成当日任务清单")
+    @PostMapping("/smart-schedule")
+    public Result<SmartInspectionScheduleDTO> smartSchedule(@RequestBody(required = false) SmartInspectionScheduleQueryDTO query) {
+        return Result.success(smartScheduleService.generateSchedule(query));
     }
 }
