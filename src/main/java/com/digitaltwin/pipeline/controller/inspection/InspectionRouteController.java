@@ -2,10 +2,12 @@ package com.digitaltwin.pipeline.controller.inspection;
 
 import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
+import com.digitaltwin.pipeline.dto.inspection.AdvancedInspectionScheduleDTO;
 import com.digitaltwin.pipeline.dto.inspection.InspectionRouteQueryDTO;
 import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleDTO;
 import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleQueryDTO;
 import com.digitaltwin.pipeline.entity.inspection.InspectionRoute;
+import com.digitaltwin.pipeline.service.inspection.AdvancedInspectionScheduleService;
 import com.digitaltwin.pipeline.service.inspection.InspectionRouteService;
 import com.digitaltwin.pipeline.service.inspection.SmartInspectionScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +23,7 @@ public class InspectionRouteController {
 
     private final InspectionRouteService routeService;
     private final SmartInspectionScheduleService smartScheduleService;
+    private final AdvancedInspectionScheduleService advancedScheduleService;
 
     @Operation(summary = "分页查询巡检路线")
     @GetMapping("/page")
@@ -46,5 +49,11 @@ public class InspectionRouteController {
     @PostMapping("/smart-schedule")
     public Result<SmartInspectionScheduleDTO> smartSchedule(@RequestBody(required = false) SmartInspectionScheduleQueryDTO query) {
         return Result.success(smartScheduleService.generateSchedule(query));
+    }
+
+    @Operation(summary = "【高级增强】智能巡检调度：班组能力匹配、资源约束、甘特图、冲突检测")
+    @PostMapping("/advanced-schedule")
+    public Result<AdvancedInspectionScheduleDTO> advancedSchedule(@RequestBody(required = false) SmartInspectionScheduleQueryDTO query) {
+        return Result.success(advancedScheduleService.advancedSchedule(query));
     }
 }

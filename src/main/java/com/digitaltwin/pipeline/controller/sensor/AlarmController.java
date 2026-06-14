@@ -6,10 +6,12 @@ import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.sensor.AlarmDisposalSuggestionDTO;
 import com.digitaltwin.pipeline.dto.sensor.AlarmQueryDTO;
+import com.digitaltwin.pipeline.dto.situation.EmergencyPlanComparisonDTO;
 import com.digitaltwin.pipeline.entity.sensor.Alarm;
 import com.digitaltwin.pipeline.mapper.sensor.AlarmMapper;
 import com.digitaltwin.pipeline.service.sensor.AlarmDisposalService;
 import com.digitaltwin.pipeline.service.sensor.AlarmService;
+import com.digitaltwin.pipeline.service.sensor.EmergencyPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class AlarmController {
 
     private final AlarmService alarmService;
     private final AlarmDisposalService alarmDisposalService;
+    private final EmergencyPlanService emergencyPlanService;
     private final AlarmMapper alarmMapper;
 
     @Operation(summary = "分页查询告警记录")
@@ -103,6 +106,29 @@ public class AlarmController {
         wrapper.orderByDesc(Alarm::getId);
         wrapper.last("LIMIT " + limit);
         return Result.success(alarmMapper.selectList(wrapper));
+    }
+
+    @Operation(summary = "【应急处置】获取告警的多方案对比")
+    @GetMapping("/{id}/plans")
+    public Result<EmergencyPlanComparisonDTO> getPlanComparison(@PathVariable Long id) {
+        return Result.success(emergencyPlanService.comparePlans(id));
+    }
+
+    @Operation(summary = "【应急处置】按策略类型获取单方案详情")
+    @GetMapping("/{id}/plan/{strategyType}")
+    public Result<EmergencyPlanComparisonDTO.DisposalPlanVO> getSinglePlan(
+            @PathVariable Long id,
+            @PathVariable Integer strategyType) {
+        return Result.success(emergencyPlanService.getSinglePlan(id, strategyType));
+    }
+
+    @Operation(summary = "【应急处置】选定方案并下发执行")
+    @PostMapping("/{id}/select-plan")
+    public Result<EmergencyPlanComparisonDTO> selectAndExecutePlan(
+            @PathVariable Long id,
+            @RequestParam Long planId,
+            @RequestParam String operatorName) {
+        return Result.success(emergencyPlanService.selectAndExecute(id, planId, operatorName));
     }
 
     private List<Long> parseIds(String ids) {
