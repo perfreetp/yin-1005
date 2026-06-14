@@ -9,9 +9,11 @@ import com.digitaltwin.pipeline.dto.sensor.AlarmQueryDTO;
 import com.digitaltwin.pipeline.dto.situation.EmergencyPlanComparisonDTO;
 import com.digitaltwin.pipeline.entity.sensor.Alarm;
 import com.digitaltwin.pipeline.mapper.sensor.AlarmMapper;
+import com.digitaltwin.pipeline.entity.situation.PlanExecutionRecord;
 import com.digitaltwin.pipeline.service.sensor.AlarmDisposalService;
 import com.digitaltwin.pipeline.service.sensor.AlarmService;
 import com.digitaltwin.pipeline.service.sensor.EmergencyPlanService;
+import com.digitaltwin.pipeline.service.situation.PlanExecutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class AlarmController {
     private final AlarmDisposalService alarmDisposalService;
     private final EmergencyPlanService emergencyPlanService;
     private final AlarmMapper alarmMapper;
+    private final PlanExecutionService planExecutionService;
 
     @Operation(summary = "分页查询告警记录")
     @GetMapping("/page")
@@ -129,6 +132,16 @@ public class AlarmController {
             @RequestParam Long planId,
             @RequestParam String operatorName) {
         return Result.success(emergencyPlanService.selectAndExecute(id, planId, operatorName));
+    }
+
+    @Operation(summary = "【应急执行】启动方案执行")
+    @PostMapping("/{id}/start-plan")
+    public Result<PlanExecutionRecord> startPlanExecution(
+            @PathVariable Long id,
+            @RequestParam Long planId,
+            @RequestParam Integer strategyType,
+            @RequestParam String operatorName) {
+        return Result.success(planExecutionService.startExecution(id, planId, strategyType, operatorName));
     }
 
     private List<Long> parseIds(String ids) {

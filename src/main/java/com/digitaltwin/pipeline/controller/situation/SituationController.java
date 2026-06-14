@@ -4,8 +4,13 @@ import com.digitaltwin.pipeline.common.PageQuery;
 import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.situation.EventReplayVO;
+import com.digitaltwin.pipeline.dto.situation.PlanExecutionDetailVO;
 import com.digitaltwin.pipeline.dto.situation.SituationSnapshotVO;
 import com.digitaltwin.pipeline.entity.situation.EventIncident;
+import com.digitaltwin.pipeline.entity.situation.PlanExecutionRecord;
+import com.digitaltwin.pipeline.entity.situation.PlanExecutionTimeline;
+import com.digitaltwin.pipeline.entity.situation.ValveOperationRecord;
+import com.digitaltwin.pipeline.service.situation.PlanExecutionService;
 import com.digitaltwin.pipeline.service.situation.SituationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class SituationController {
 
     private final SituationService situationService;
+    private final PlanExecutionService planExecutionService;
 
     @Operation(summary = "一张图态势总览（当前实时快照：告警/开挖/事件/工单/异常阀门/热力图/24h预测）")
     @GetMapping("/snapshot")
@@ -40,5 +46,53 @@ public class SituationController {
                                                        @RequestParam(required = false) Integer status,
                                                        @RequestParam(required = false) String areaCode) {
         return Result.success(situationService.selectIncidentPage(query, eventType, eventLevel, status, areaCode));
+    }
+
+    @Operation(summary = "【方案执行】获取执行详情")
+    @GetMapping("/execution/{id}")
+    public Result<PlanExecutionDetailVO> getExecutionDetail(@PathVariable Long id) {
+        return Result.success(planExecutionService.getExecutionDetail(id));
+    }
+
+    @Operation(summary = "【方案执行】记录阀门操作")
+    @PostMapping("/execution/{id}/valve-op")
+    public Result<ValveOperationRecord> recordValveOperation(
+            @PathVariable Long id,
+            @RequestBody ValveOperationRecord record) {
+        return Result.success(planExecutionService.recordValveOperation(id, record));
+    }
+
+    @Operation(summary = "【方案执行】追加时间轴节点")
+    @PostMapping("/execution/{id}/timeline")
+    public Result<PlanExecutionTimeline> addTimelinePoint(
+            @PathVariable Long id,
+            @RequestBody PlanExecutionTimeline point) {
+        return Result.success(planExecutionService.addTimelinePoint(id, point));
+    }
+
+    @Operation(summary = "【方案执行】完成执行")
+    @PostMapping("/execution/{id}/complete")
+    public Result<PlanExecutionRecord> completeExecution(
+            @PathVariable Long id,
+            @RequestParam String result,
+            @RequestParam String operatorName) {
+        return Result.success(planExecutionService.completeExecution(id, result, operatorName));
+    }
+
+    @Operation(summary = "【方案执行】生成复盘分析")
+    @PostMapping("/execution/{id}/replay")
+    public Result<PlanExecutionDetailVO> generateReplayAnalysis(
+            @PathVariable Long id,
+            @RequestParam String reviewerName) {
+        return Result.success(planExecutionService.generateReplayAnalysis(id, reviewerName));
+    }
+
+    @Operation(summary = "【方案执行】分页查询执行记录")
+    @GetMapping("/execution/page")
+    public Result<PageResult<PlanExecutionRecord>> executionPage(PageQuery query,
+                                                                  @RequestParam(required = false) Integer status,
+                                                                  @RequestParam(required = false) Integer strategyType,
+                                                                  @RequestParam(required = false) String keyword) {
+        return Result.success(planExecutionService.executionPage(query, status, strategyType, keyword));
     }
 }
