@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.digitaltwin.pipeline.mapper.trace.ChangeHistoryMapper">
+
+    <resultMap id="ChangeHistoryMap" type="com.digitaltwin.pipeline.entity.trace.ChangeHistory">
+        <id column="id" property="id"/>
+        <result column="business_type" property="businessType"/>
+        <result column="business_id" property="businessId"/>
+        <result column="business_code" property="businessCode"/>
+        <result column="change_type" property="changeType"/>
+        <result column="field_name" property="fieldName"/>
+        <result column="old_value" property="oldValue"/>
+        <result column="new_value" property="newValue"/>
+        <result column="description" property="description"/>
+        <result column="operator" property="operator"/>
+        <result column="operator_dept" property="operatorDept"/>
+        <result column="operate_time" property="operateTime"/>
+        <result column="operate_ip" property="operateIp"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="ChangeHistoryMap">
+        SELECT * FROM change_history
+        <where>
+            deleted = 0
+            <if test="businessType != null">
+                AND business_type = #{businessType}
+            </if>
+            <if test="businessId != null">
+                AND business_id = #{businessId}
+            </if>
+            <if test="changeType != null">
+                AND change_type = #{changeType}
+            </if>
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="operator != null and operator != ''">
+                AND operator LIKE CONCAT('%', #{operator}, '%')
+            </if>
+            <if test="startTime != null and startTime != ''">
+                AND operate_time >= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND operate_time <= #{endTime}
+            </if>
+        </where>
+        ORDER BY operate_time DESC
+    </select>
+
+</mapper>

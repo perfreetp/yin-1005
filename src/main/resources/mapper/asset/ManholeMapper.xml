@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.digitaltwin.pipeline.mapper.asset.ManholeMapper">
+
+    <resultMap id="ManholeMap" type="com.digitaltwin.pipeline.entity.asset.Manhole">
+        <id column="id" property="id"/>
+        <result column="manhole_code" property="manholeCode"/>
+        <result column="manhole_name" property="manholeName"/>
+        <result column="manhole_type" property="manholeType"/>
+        <result column="shape" property="shape"/>
+        <result column="size" property="size"/>
+        <result column="material" property="material"/>
+        <result column="lng" property="lng"/>
+        <result column="lat" property="lat"/>
+        <result column="depth" property="depth"/>
+        <result column="pipeline_code" property="pipelineCode"/>
+        <result column="pipeline_id" property="pipelineId"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="area_name" property="areaName"/>
+        <result column="road_name" property="roadName"/>
+        <result column="install_date" property="installDate"/>
+        <result column="owner_unit" property="ownerUnit"/>
+        <result column="status" property="status"/>
+        <result column="has_safety_net" property="hasSafetyNet"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="ManholeMap">
+        SELECT * FROM pipeline_manhole
+        <where>
+            deleted = 0
+            <if test="manholeType != null">
+                AND manhole_type = #{manholeType}
+            </if>
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (manhole_code LIKE CONCAT('%', #{keyword}, '%')
+                OR manhole_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectByAreaAndType" resultMap="ManholeMap">
+        SELECT * FROM pipeline_manhole
+        <where>
+            deleted = 0
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="manholeType != null">
+                AND manhole_type = #{manholeType}
+            </if>
+        </where>
+        ORDER BY id
+    </select>
+
+</mapper>

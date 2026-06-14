@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.digitaltwin.pipeline.mapper.sensor.AlarmMapper">
+
+    <resultMap id="AlarmMap" type="com.digitaltwin.pipeline.entity.sensor.Alarm">
+        <id column="id" property="id"/>
+        <result column="alarm_code" property="alarmCode"/>
+        <result column="alarm_type" property="alarmType"/>
+        <result column="alarm_level" property="alarmLevel"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="sensor_id" property="sensorId"/>
+        <result column="sensor_code" property="sensorCode"/>
+        <result column="pipeline_id" property="pipelineId"/>
+        <result column="pipeline_code" property="pipelineCode"/>
+        <result column="lng" property="lng"/>
+        <result column="lat" property="lat"/>
+        <result column="location" property="location"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="area_name" property="areaName"/>
+        <result column="threshold_value" property="thresholdValue"/>
+        <result column="actual_value" property="actualValue"/>
+        <result column="unit" property="unit"/>
+        <result column="alarm_time" property="alarmTime"/>
+        <result column="status" property="status"/>
+        <result column="handler" property="handler"/>
+        <result column="handle_time" property="handleTime"/>
+        <result column="handle_result" property="handleResult"/>
+        <result column="hazard_id" property="hazardId"/>
+        <result column="work_order_id" property="workOrderId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="AlarmMap">
+        SELECT * FROM pipeline_alarm
+        <where>
+            deleted = 0
+            <if test="alarmType != null">
+                AND alarm_type = #{alarmType}
+            </if>
+            <if test="alarmLevel != null">
+                AND alarm_level = #{alarmLevel}
+            </if>
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null and startTime != ''">
+                AND alarm_time >= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND alarm_time <= #{endTime}
+            </if>
+        </where>
+        ORDER BY alarm_level DESC, alarm_time DESC
+    </select>
+
+</mapper>

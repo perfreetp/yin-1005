@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.digitaltwin.pipeline.mapper.asset.ValveMapper">
+
+    <resultMap id="ValveMap" type="com.digitaltwin.pipeline.entity.asset.Valve">
+        <id column="id" property="id"/>
+        <result column="valve_code" property="valveCode"/>
+        <result column="valve_name" property="valveName"/>
+        <result column="valve_type" property="valveType"/>
+        <result column="diameter" property="diameter"/>
+        <result column="lng" property="lng"/>
+        <result column="lat" property="lat"/>
+        <result column="pipeline_code" property="pipelineCode"/>
+        <result column="pipeline_id" property="pipelineId"/>
+        <result column="control_direction" property="controlDirection"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="area_name" property="areaName"/>
+        <result column="location" property="location"/>
+        <result column="install_date" property="installDate"/>
+        <result column="owner_unit" property="ownerUnit"/>
+        <result column="status" property="status"/>
+        <result column="remote_controllable" property="remoteControllable"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="ValveMap">
+        SELECT * FROM pipeline_valve
+        <where>
+            deleted = 0
+            <if test="valveType != null">
+                AND valve_type = #{valveType}
+            </if>
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (valve_code LIKE CONCAT('%', #{keyword}, '%')
+                OR valve_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectByPipelineId" resultMap="ValveMap">
+        SELECT * FROM pipeline_valve
+        WHERE deleted = 0 AND pipeline_id = #{pipelineId}
+        ORDER BY id
+    </select>
+
+    <select id="selectEmergencyValves" resultMap="ValveMap">
+        SELECT *,
+            6371000 * 2 * ASIN(SQRT(
+                POW(SIN((#{lat} * PI() / 180 - lat * PI() / 180) / 2), 2) +
+                COS(#{lat} * PI() / 180) * COS(lat * PI() / 180) *
+                POW(SIN((#{lng} * PI() / 180 - lng * PI() / 180) / 2), 2)
+            )) AS distance
+        FROM pipeline_valve
+        WHERE deleted = 0 AND status = 1
+        <if test="pipelineType != null">
+            AND pipeline_id IN (SELECT id FROM pipeline WHERE pipeline_type = #{pipelineType} AND deleted = 0)
+        </if>
+        HAVING distance <![CDATA[ < ]]> #{radius}
+        ORDER BY distance ASC
+        LIMIT 10
+    </select>
+
+</mapper>

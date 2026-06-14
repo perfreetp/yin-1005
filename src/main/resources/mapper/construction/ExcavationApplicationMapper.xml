@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.digitaltwin.pipeline.mapper.construction.ExcavationApplicationMapper">
+
+    <resultMap id="ExcavationMap" type="com.digitaltwin.pipeline.entity.construction.ExcavationApplication">
+        <id column="id" property="id"/>
+        <result column="application_code" property="applicationCode"/>
+        <result column="project_name" property="projectName"/>
+        <result column="applicant_unit" property="applicantUnit"/>
+        <result column="applicant" property="applicant"/>
+        <result column="contact_phone" property="contactPhone"/>
+        <result column="construction_unit" property="constructionUnit"/>
+        <result column="construction_leader" property="constructionLeader"/>
+        <result column="excavation_type" property="excavationType"/>
+        <result column="area_description" property="areaDescription"/>
+        <result column="geometry" property="geometry"/>
+        <result column="center_lng" property="centerLng"/>
+        <result column="center_lat" property="centerLat"/>
+        <result column="area" property="area"/>
+        <result column="depth" property="depth"/>
+        <result column="plan_start_date" property="planStartDate"/>
+        <result column="plan_end_date" property="planEndDate"/>
+        <result column="construction_content" property="constructionContent"/>
+        <result column="protection_measures" property="protectionMeasures"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="area_name" property="areaName"/>
+        <result column="involved_pipeline_count" property="involvedPipelineCount"/>
+        <result column="has_conflict" property="hasConflict"/>
+        <result column="conflict_pipeline_types" property="conflictPipelineTypes"/>
+        <result column="affected_road_count" property="affectedRoadCount"/>
+        <result column="affected_road_names" property="affectedRoadNames"/>
+        <result column="status" property="status"/>
+        <result column="review_opinion" property="reviewOpinion"/>
+        <result column="reviewer" property="reviewer"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="approval_opinion" property="approvalOpinion"/>
+        <result column="approver" property="approver"/>
+        <result column="approval_time" property="approvalTime"/>
+        <result column="attachments" property="attachments"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="ExcavationMap">
+        SELECT * FROM excavation_application
+        <where>
+            deleted = 0
+            <if test="excavationType != null">
+                AND excavation_type = #{excavationType}
+            </if>
+            <if test="areaCode != null and areaCode != ''">
+                AND area_code LIKE CONCAT(#{areaCode}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="applicantUnit != null and applicantUnit != ''">
+                AND applicant_unit LIKE CONCAT('%', #{applicantUnit}, '%')
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (application_code LIKE CONCAT('%', #{keyword}, '%')
+                OR project_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+</mapper>
