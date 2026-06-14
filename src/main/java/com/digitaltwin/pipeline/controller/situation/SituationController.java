@@ -15,7 +15,14 @@ import com.digitaltwin.pipeline.service.situation.SituationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Tag(name = "事件态势与历史回放")
 @RestController
@@ -94,5 +101,44 @@ public class SituationController {
                                                                   @RequestParam(required = false) Integer strategyType,
                                                                   @RequestParam(required = false) String keyword) {
         return Result.success(planExecutionService.executionPage(query, status, strategyType, keyword));
+    }
+
+    @Operation(summary = "【方案执行】获取超时卡点分析")
+    @GetMapping("/execution/{id}/stuck-analysis")
+    public Result<PlanExecutionDetailVO.ExecutionStuckAnalysisVO> getStuckAnalysis(@PathVariable Long id) {
+        return Result.success(planExecutionService.getStuckAnalysis(id));
+    }
+
+    @Operation(summary = "【方案执行】确认阀门操作")
+    @PostMapping("/execution/valve-op/{recordId}/confirm")
+    public Result<PlanExecutionDetailVO> confirmValveOperation(
+            @PathVariable Long recordId,
+            @RequestParam String confirmerName,
+            @RequestParam Integer confirmMethod,
+            @RequestParam(required = false) String remark) {
+        return Result.success(planExecutionService.confirmValveOperation(recordId, confirmerName, confirmMethod, remark));
+    }
+
+    @Operation(summary = "【方案执行】获取完整执行记录（导出用）")
+    @GetMapping("/execution/{id}/full")
+    public Result<PlanExecutionDetailVO> getFullExecutionRecord(@PathVariable Long id) {
+        return Result.success(planExecutionService.getFullExecutionRecord(id));
+    }
+
+    @Operation(summary = "【方案执行】导出执行记录")
+    @GetMapping("/execution/{id}/export")
+    public ResponseEntity<byte[]> exportExecutionRecord(
+            @PathVariable Long id,
+            @RequestParam String exporterName) {
+        byte[] data = planExecutionService.exportExecutionRecord(id, exporterName);
+        String fileName = "execution-record-" + id + ".txt";
+        String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        headers.setContentDispositionFormData("attachment", encodedFileName);
+        headers.setContentLength(data.length);
+
+        return new ResponseEntity<>(data, headers, HttpStatus.OK);
     }
 }

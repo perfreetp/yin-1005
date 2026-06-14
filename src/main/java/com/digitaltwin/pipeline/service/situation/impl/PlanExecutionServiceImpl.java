@@ -51,6 +51,8 @@ public class PlanExecutionServiceImpl implements PlanExecutionService {
     private static final String[] ACTION_NAMES = {"不动", "关阀", "节流"};
     private static final String[] POINT_TYPE_NAMES = {"", "方案选定", "派单", "到达现场", "开始关阀", "完成关阀",
             "开始维修", "完成维修", "开始恢复", "恢复完成", "意外事件"};
+    private static final String[] CONFIRM_METHOD_NAMES = {"", "远程", "现场巡检", "视频确认", "传感器反馈"};
+    private static final String[] FAIL_CATEGORY_NAMES = {"", "阀门故障", "操作失误", "通讯故障", "其他"};
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -161,6 +163,17 @@ public class PlanExecutionServiceImpl implements PlanExecutionService {
         vo.setDeviationUsers(record.getDeviationUsers());
         vo.setAccuracyScore(record.getAccuracyScore());
         vo.setRemark(record.getRemark());
+        vo.setStuckPoint(record.getStuckPoint());
+        vo.setStuckReason(record.getStuckReason());
+        vo.setImprovementMeasures(record.getImprovementMeasures());
+        vo.setExportTime(record.getExportTime());
+        vo.setExporterName(record.getExporterName());
+        vo.setExportCount(record.getExportCount());
+        vo.setTotalValveCount(record.getTotalValveCount());
+        vo.setSuccessValveCount(record.getSuccessValveCount());
+        vo.setFailValveCount(record.getFailValveCount());
+        vo.setOnTimeValveCount(record.getOnTimeValveCount());
+        vo.setTimeoutValveCount(record.getTimeoutValveCount());
 
         List<ValveOperationRecord> valveRecords = valveOperationMapper.selectList(
                 new LambdaQueryWrapper<ValveOperationRecord>()
@@ -200,6 +213,20 @@ public class PlanExecutionServiceImpl implements PlanExecutionService {
                 vvo.setActionConsistent(vor.getPlannedAction().equals(vor.getActualAction()) ? 1 : 0);
             }
             vvo.setRemark(vor.getRemark());
+            vvo.setConfirmerName(vor.getConfirmerName());
+            vvo.setConfirmTime(vor.getConfirmTime());
+            vvo.setConfirmMethod(vor.getConfirmMethod());
+            vvo.setConfirmMethodName(vor.getConfirmMethod() != null && vor.getConfirmMethod() > 0
+                    && vor.getConfirmMethod() < CONFIRM_METHOD_NAMES.length ? CONFIRM_METHOD_NAMES[vor.getConfirmMethod()] : "");
+            vvo.setPhotoIds(vor.getPhotoIds());
+            vvo.setBeforePressure(vor.getBeforePressure());
+            vvo.setAfterPressure(vor.getAfterPressure());
+            vvo.setIsTimeout(vor.getIsTimeout());
+            vvo.setTimeoutMinutes(vor.getTimeoutMinutes());
+            vvo.setFailCategory(vor.getFailCategory());
+            vvo.setFailCategoryName(vor.getFailCategory() != null && vor.getFailCategory() > 0
+                    && vor.getFailCategory() < FAIL_CATEGORY_NAMES.length ? FAIL_CATEGORY_NAMES[vor.getFailCategory()] : "");
+            vvo.setActualRemark(vor.getActualRemark());
             valveVOS.add(vvo);
         }
         vo.setValveOperations(valveVOS);
@@ -438,6 +465,351 @@ public class PlanExecutionServiceImpl implements PlanExecutionService {
         Page<PlanExecutionRecord> page = new Page<>(query.getPageNum(), query.getPageSize());
         Page<PlanExecutionRecord> result = executionRecordMapper.selectPage(page, wrapper);
         return PageResult.of(result);
+    }
+
+    @Override
+    public PlanExecutionDetailVO.ExecutionStuckAnalysisVO getStuckAnalysis(Long executionId) {
+        PlanExecutionRecord record = executionRecordMapper.selectById(executionId);
+        if (record == null) {
+            throw new BusinessException("执行记录不存在");
+        }
+
+        List<ValveOperationRecord> valveRecords = valveOperationMapper.selectList(
+                new LambdaQueryWrapper<ValveOperationRecord>()
+                        .eq(ValveOperationRecord::getExecutionId, executionId)
+                        .orderByAsc(ValveOperationRecord::getPlannedOrderNo)
+        );
+
+        PlanExecutionDetailVO.ExecutionStuckAnalysisVO analysis = new PlanExecutionDetailVO.ExecutionStuckAnalysisVO();
+        analysis.setTotalSteps(valveRecords.size());
+
+        List<PlanExecutionDetailVO.StuckStepItem> stuckList = new ArrayList<>();
+        int totalActualMinutes = 0;
+        int maxDuration = 0;
+        int stuckCount = 0;
+
+        for (ValveOperationRecord vor : valveRecords) {
+            if (vor.getActualMinutes() != null) {
+                totalActualMinutes += vor.getActualMinutes();
+                if (vor.getActualMinutes() > maxDuration) {
+                    maxDuration = vor.getActualMinutes();
+                }
+            }
+
+            boolean isTimeout = false;
+            if (vor.getPlannedMinutes() != null && vor.getActualMinutes() != null
+                    && vor.getActualMinutes() > vor.getPlannedMinutes()) {
+                isTimeout = true;
+                stuckCount++;
+            }
+
+            if (isTimeout || (vor.getIsTimeout() != null && vor.getIsTimeout() == 1)) {
+                PlanExecutionDetailVO.StuckStepItem item = new PlanExecutionDetailVO.StuckStepItem();
+                item.setStepIndex(vor.getPlannedOrderNo());
+                item.setValveName(vor.getValveName());
+                item.setValveCode(vor.getValveCode());
+                item.setPlannedDuration(vor.getPlannedMinutes());
+                item.setActualDuration(vor.getActualMinutes());
+                if (vor.getPlannedMinutes() != null && vor.getActualMinutes() != null) {
+                    item.setDeviation(vor.getActualMinutes() - vor.getPlannedMinutes());
+                }
+                item.setIsTimeout(1);
+                int timeoutMin = vor.getTimeoutMinutes() != null ? vor.getTimeoutMinutes() :
+                        (vor.getPlannedMinutes() != null && vor.getActualMinutes() != null
+                                ? vor.getActualMinutes() - vor.getPlannedMinutes() : 0);
+                item.setTimeoutMinutes(timeoutMin);
+                item.setStuckReason(vor.getFailReason());
+                item.setFailCategory(vor.getFailCategory());
+                item.setFailCategoryName(vor.getFailCategory() != null && vor.getFailCategory() > 0
+                        && vor.getFailCategory() < FAIL_CATEGORY_NAMES.length ? FAIL_CATEGORY_NAMES[vor.getFailCategory()] : "");
+                item.setConfirmerName(vor.getConfirmerName());
+                item.setConfirmTime(vor.getConfirmTime());
+                stuckList.add(item);
+            }
+        }
+
+        analysis.setStuckStepCount(stuckList.size());
+        analysis.setStuckStepList(stuckList);
+        analysis.setMaxStepDurationMinutes(maxDuration);
+
+        if (!valveRecords.isEmpty() && totalActualMinutes > 0) {
+            analysis.setAvgStepDurationMinutes(new java.math.BigDecimal(totalActualMinutes)
+                    .divide(new java.math.BigDecimal(valveRecords.size()), 2, java.math.RoundingMode.HALF_UP));
+        }
+
+        analysis.setRootCauseAnalysis(generateRootCauseAnalysis(stuckList));
+        analysis.setSuggestion(generateStuckSuggestion(stuckList));
+
+        return analysis;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PlanExecutionDetailVO confirmValveOperation(Long recordId, String confirmerName, Integer confirmMethod, String remark) {
+        ValveOperationRecord vor = valveOperationMapper.selectById(recordId);
+        if (vor == null) {
+            throw new BusinessException("阀门操作记录不存在");
+        }
+
+        vor.setConfirmerName(confirmerName);
+        vor.setConfirmTime(LocalDateTime.now());
+        vor.setConfirmMethod(confirmMethod);
+        vor.setActualRemark(remark);
+
+        if (vor.getPlannedMinutes() != null && vor.getActualMinutes() != null
+                && vor.getActualMinutes() > vor.getPlannedMinutes()) {
+            vor.setIsTimeout(1);
+            vor.setTimeoutMinutes(vor.getActualMinutes() - vor.getPlannedMinutes());
+        } else {
+            vor.setIsTimeout(0);
+            vor.setTimeoutMinutes(0);
+        }
+
+        valveOperationMapper.updateById(vor);
+
+        PlanExecutionTimeline timeline = new PlanExecutionTimeline();
+        timeline.setExecutionId(vor.getExecutionId());
+        timeline.setExecutionCode(vor.getExecutionCode());
+        timeline.setPointType(10);
+        timeline.setTitle("阀门操作确认");
+        timeline.setDescription("阀门[" + vor.getValveName() + "]操作已确认，确认人：" + confirmerName
+                + "，确认方式：" + (confirmMethod != null && confirmMethod > 0 && confirmMethod < CONFIRM_METHOD_NAMES.length
+                ? CONFIRM_METHOD_NAMES[confirmMethod] : ""));
+        timeline.setOccurTime(LocalDateTime.now());
+        timeline.setOperatorName(confirmerName);
+        timeline.setIsKeyNode(0);
+        timeline.setResourceType("valve");
+        timeline.setResourceId(vor.getValveId());
+        timeline.setResourceCode(vor.getValveCode());
+        timelineMapper.insert(timeline);
+
+        updateExecutionStats(vor.getExecutionId());
+
+        return getExecutionDetail(vor.getExecutionId());
+    }
+
+    @Override
+    public PlanExecutionDetailVO getFullExecutionRecord(Long executionId) {
+        PlanExecutionDetailVO detail = getExecutionDetail(executionId);
+        detail.setStuckAnalysis(getStuckAnalysis(executionId));
+        return detail;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public byte[] exportExecutionRecord(Long executionId, String exporterName) {
+        PlanExecutionRecord record = executionRecordMapper.selectById(executionId);
+        if (record == null) {
+            throw new BusinessException("执行记录不存在");
+        }
+
+        PlanExecutionDetailVO fullRecord = getFullExecutionRecord(executionId);
+        fullRecord.setExportTime(LocalDateTime.now());
+        fullRecord.setExporterName(exporterName);
+
+        record.setExportTime(LocalDateTime.now());
+        record.setExporterName(exporterName);
+        if (record.getExportCount() == null) {
+            record.setExportCount(1);
+        } else {
+            record.setExportCount(record.getExportCount() + 1);
+        }
+        executionRecordMapper.updateById(record);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("========== 应急方案执行记录导出报告 ==========\n");
+        sb.append("导出时间：").append(fullRecord.getExportTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n");
+        sb.append("导出人：").append(exporterName).append("\n\n");
+
+        sb.append("---------- 一、基本信息 ----------\n");
+        sb.append("执行记录编号：").append(fullRecord.getRecordCode()).append("\n");
+        sb.append("方案名称：").append(fullRecord.getPlanName()).append("\n");
+        sb.append("策略类型：").append(fullRecord.getStrategyTypeName()).append("\n");
+        sb.append("执行状态：").append(fullRecord.getStatusName()).append("\n");
+        sb.append("开始时间：").append(fullRecord.getStartTime() != null ? fullRecord.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "-").append("\n");
+        sb.append("结束时间：").append(fullRecord.getEndTime() != null ? fullRecord.getEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "-").append("\n");
+        sb.append("实际总耗时：").append(fullRecord.getTotalUsedMinutes() != null ? fullRecord.getTotalUsedMinutes() + "分钟" : "-").append("\n");
+        sb.append("预估总耗时：").append(fullRecord.getEstimatedTotalMinutes() != null ? fullRecord.getEstimatedTotalMinutes() + "分钟" : "-").append("\n");
+        sb.append("准确度评分：").append(fullRecord.getAccuracyScore() != null ? fullRecord.getAccuracyScore() + "分" : "-").append("\n");
+        sb.append("操作人：").append(fullRecord.getOperatorName()).append("\n\n");
+
+        sb.append("---------- 二、阀门操作清单 ----------\n");
+        if (fullRecord.getValveOperations() != null && !fullRecord.getValveOperations().isEmpty()) {
+            int idx = 1;
+            for (PlanExecutionDetailVO.ValveOperationVO vo : fullRecord.getValveOperations()) {
+                sb.append("  【").append(idx++).append("】").append(vo.getValveName()).append("(").append(vo.getValveCode()).append(")\n");
+                sb.append("    计划动作：").append(vo.getPlannedActionName()).append("，实际动作：").append(vo.getActualActionName()).append("\n");
+                sb.append("    计划耗时：").append(vo.getPlannedMinutes() != null ? vo.getPlannedMinutes() + "分钟" : "-").append("，实际耗时：").append(vo.getActualMinutes() != null ? vo.getActualMinutes() + "分钟" : "-").append("\n");
+                sb.append("    操作结果：").append(vo.getIsSuccessfulName()).append("\n");
+                sb.append("    确认人：").append(vo.getConfirmerName() != null ? vo.getConfirmerName() : "-").append("\n");
+                sb.append("    确认方式：").append(vo.getConfirmMethodName() != null ? vo.getConfirmMethodName() : "-").append("\n");
+                sb.append("    确认时间：").append(vo.getConfirmTime() != null ? vo.getConfirmTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "-").append("\n");
+                sb.append("    是否超时：").append(vo.getIsTimeout() != null && vo.getIsTimeout() == 1 ? "是" : "否").append("\n");
+                if (vo.getTimeoutMinutes() != null && vo.getTimeoutMinutes() > 0) {
+                    sb.append("    超时时长：").append(vo.getTimeoutMinutes()).append("分钟\n");
+                }
+                sb.append("    失败分类：").append(vo.getFailCategoryName() != null ? vo.getFailCategoryName() : "-").append("\n");
+                sb.append("    备注：").append(vo.getRemark() != null ? vo.getRemark() : "-").append("\n");
+                sb.append("    实际备注：").append(vo.getActualRemark() != null ? vo.getActualRemark() : "-").append("\n");
+            }
+        }
+        sb.append("\n");
+
+        if (fullRecord.getStuckAnalysis() != null) {
+            sb.append("---------- 三、超时卡点分析 ----------\n");
+            sb.append("总步骤数：").append(fullRecord.getStuckAnalysis().getTotalSteps()).append("\n");
+            sb.append("卡点步骤数：").append(fullRecord.getStuckAnalysis().getStuckStepCount()).append("\n");
+            sb.append("平均步骤耗时：").append(fullRecord.getStuckAnalysis().getAvgStepDurationMinutes() != null ? fullRecord.getStuckAnalysis().getAvgStepDurationMinutes() + "分钟" : "-").append("\n");
+            sb.append("最长步骤耗时：").append(fullRecord.getStuckAnalysis().getMaxStepDurationMinutes() != null ? fullRecord.getStuckAnalysis().getMaxStepDurationMinutes() + "分钟" : "-").append("\n");
+            sb.append("根因分析：").append(fullRecord.getStuckAnalysis().getRootCauseAnalysis() != null ? fullRecord.getStuckAnalysis().getRootCauseAnalysis() : "-").append("\n");
+            sb.append("优化建议：").append(fullRecord.getStuckAnalysis().getSuggestion() != null ? fullRecord.getStuckAnalysis().getSuggestion() : "-").append("\n\n");
+        }
+
+        if (fullRecord.getAnalysis() != null) {
+            sb.append("---------- 四、复盘分析 ----------\n");
+            sb.append("综合评分：").append(fullRecord.getAnalysis().getOverallScore()).append("分\n");
+            sb.append("做得好的方面：").append(fullRecord.getAnalysis().getGoodPoints() != null ? fullRecord.getAnalysis().getGoodPoints() : "-").append("\n");
+            sb.append("需改进的方面：").append(fullRecord.getAnalysis().getImprovementPoints() != null ? fullRecord.getAnalysis().getImprovementPoints() : "-").append("\n");
+            sb.append("优化建议：").append(fullRecord.getAnalysis().getSuggestions() != null ? fullRecord.getAnalysis().getSuggestions() : "-").append("\n");
+            sb.append("经验教训：").append(fullRecord.getAnalysis().getLearnedLessons() != null ? fullRecord.getAnalysis().getLearnedLessons() : "-").append("\n");
+            sb.append("复盘人：").append(fullRecord.getAnalysis().getReviewerName() != null ? fullRecord.getAnalysis().getReviewerName() : "-").append("\n\n");
+        }
+
+        sb.append("========== 报告结束 ==========\n");
+
+        return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private void updateExecutionStats(Long executionId) {
+        List<ValveOperationRecord> valveRecords = valveOperationMapper.selectList(
+                new LambdaQueryWrapper<ValveOperationRecord>()
+                        .eq(ValveOperationRecord::getExecutionId, executionId)
+        );
+
+        PlanExecutionRecord record = executionRecordMapper.selectById(executionId);
+        if (record == null) {
+            return;
+        }
+
+        int totalCount = 0;
+        int successCount = 0;
+        int failCount = 0;
+        int onTimeCount = 0;
+        int timeoutCount = 0;
+
+        for (ValveOperationRecord vor : valveRecords) {
+            if (vor.getPlannedAction() != null && vor.getPlannedAction() != 0) {
+                totalCount++;
+            }
+            if (vor.getIsSuccessful() != null && vor.getIsSuccessful() == 1) {
+                successCount++;
+            }
+            if (vor.getIsSuccessful() != null && vor.getIsSuccessful() == 0) {
+                failCount++;
+            }
+            if (vor.getIsTimeout() != null && vor.getIsTimeout() == 1) {
+                timeoutCount++;
+            } else if (vor.getActualMinutes() != null && vor.getPlannedMinutes() != null
+                    && vor.getActualMinutes() <= vor.getPlannedMinutes()) {
+                onTimeCount++;
+            }
+        }
+
+        record.setTotalValveCount(totalCount);
+        record.setSuccessValveCount(successCount);
+        record.setFailValveCount(failCount);
+        record.setOnTimeValveCount(onTimeCount);
+        record.setTimeoutValveCount(timeoutCount);
+
+        executionRecordMapper.updateById(record);
+    }
+
+    private String generateRootCauseAnalysis(List<PlanExecutionDetailVO.StuckStepItem> stuckList) {
+        if (stuckList == null || stuckList.isEmpty()) {
+            return "无超时卡点，执行顺利";
+        }
+
+        List<String> causes = new ArrayList<>();
+        int valveFaultCount = 0;
+        int opErrorCount = 0;
+        int commErrorCount = 0;
+        int otherCount = 0;
+
+        for (PlanExecutionDetailVO.StuckStepItem item : stuckList) {
+            if (item.getFailCategory() != null) {
+                switch (item.getFailCategory()) {
+                    case 1:
+                        valveFaultCount++;
+                        break;
+                    case 2:
+                        opErrorCount++;
+                        break;
+                    case 3:
+                        commErrorCount++;
+                        break;
+                    case 4:
+                        otherCount++;
+                        break;
+                    default:
+                        otherCount++;
+                        break;
+                }
+            }
+        }
+
+        if (valveFaultCount > 0) {
+            causes.add("阀门设备故障导致" + valveFaultCount + "个步骤超时");
+        }
+        if (opErrorCount > 0) {
+            causes.add("操作失误导致" + opErrorCount + "个步骤超时");
+        }
+        if (commErrorCount > 0) {
+            causes.add("通讯故障导致" + commErrorCount + "个步骤超时");
+        }
+        if (otherCount > 0) {
+            causes.add("其他原因导致" + otherCount + "个步骤超时");
+        }
+
+        if (causes.isEmpty()) {
+            causes.add("部分步骤实际耗时超出计划，需进一步排查具体原因");
+        }
+
+        return String.join("；", causes);
+    }
+
+    private String generateStuckSuggestion(List<PlanExecutionDetailVO.StuckStepItem> stuckList) {
+        if (stuckList == null || stuckList.isEmpty()) {
+            return "继续保持，定期开展应急演练";
+        }
+
+        List<String> suggestions = new ArrayList<>();
+
+        suggestions.add("建议针对超时步骤优化操作流程，提高执行效率");
+
+        long remoteCount = stuckList.stream()
+                .filter(s -> s.getFailCategory() != null && s.getFailCategory() == 3)
+                .count();
+        if (remoteCount > 0) {
+            suggestions.add("建议加强通讯设备巡检，确保应急时通讯畅通");
+        }
+
+        long valveCount = stuckList.stream()
+                .filter(s -> s.getFailCategory() != null && s.getFailCategory() == 1)
+                .count();
+        if (valveCount > 0) {
+            suggestions.add("建议加强阀门日常维护保养，减少设备故障");
+        }
+
+        long opCount = stuckList.stream()
+                .filter(s -> s.getFailCategory() != null && s.getFailCategory() == 2)
+                .count();
+        if (opCount > 0) {
+            suggestions.add("建议加强操作人员培训，提高操作熟练度和规范性");
+        }
+
+        suggestions.add("建议优化时间预估模型，充分考虑现场复杂因素");
+
+        return String.join("；", suggestions);
     }
 
     private String generateRecordCode() {

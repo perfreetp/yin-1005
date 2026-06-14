@@ -256,6 +256,33 @@ public class MeetingDetailVO {
 
         @Schema(description = "备注")
         private String remark;
+
+        @Schema(description = "实际落实结果/完成情况描述")
+        private String actualResult;
+
+        @Schema(description = "完成百分比 0-100")
+        private Integer completionPercentage;
+
+        @Schema(description = "是否超时：0否1是")
+        private Integer isTimeout;
+
+        @Schema(description = "最后更新时间")
+        private LocalDateTime lastUpdateTime;
+
+        @Schema(description = "最后更新人")
+        private String lastUpdaterName;
+
+        @Schema(description = "验证人")
+        private String verificationPerson;
+
+        @Schema(description = "验证时间")
+        private LocalDateTime verificationTime;
+
+        @Schema(description = "验证意见")
+        private String verificationRemark;
+
+        @Schema(description = "追踪记录列表")
+        private List<DecisionTraceVO> traces;
     }
 
     @Data
@@ -308,6 +335,33 @@ public class MeetingDetailVO {
 
         @Schema(description = "版本号")
         private Integer version;
+
+        @Schema(description = "编辑人")
+        private String editorName;
+
+        @Schema(description = "最后编辑时间")
+        private LocalDateTime editTime;
+
+        @Schema(description = "决议总数")
+        private Integer decisionTotalCount;
+
+        @Schema(description = "已完成决议数")
+        private Integer decisionCompletedCount;
+
+        @Schema(description = "进行中决议数")
+        private Integer decisionInProgressCount;
+
+        @Schema(description = "待执行决议数")
+        private Integer decisionPendingCount;
+
+        @Schema(description = "已否决决议数")
+        private Integer decisionVetoedCount;
+
+        @Schema(description = "整体完成率(%)")
+        private Integer overallCompletionRate;
+
+        @Schema(description = "附件ID列表，逗号分隔")
+        private String attachFileIds;
     }
 
     @Data
@@ -333,5 +387,51 @@ public class MeetingDetailVO {
 
         @Schema(description = "重要性")
         private Integer importance;
+    }
+
+    @Data
+    @Schema(description = "决议落地追踪记录VO")
+    public static class DecisionTraceVO {
+        @Schema(description = "ID")
+        private Long id;
+
+        @Schema(description = "决议ID")
+        private Long decisionId;
+
+        @Schema(description = "会议ID")
+        private Long meetingId;
+
+        @Schema(description = "追踪类型：1-进度更新 2-状态变更 3-备注补充 4-验证确认")
+        private Integer traceType;
+
+        @Schema(description = "追踪类型名称")
+        private String traceTypeName;
+
+        @Schema(description = "更新内容")
+        private String content;
+
+        @Schema(description = "操作人姓名")
+        private String operatorName;
+
+        @Schema(description = "操作时间")
+        private LocalDateTime operationTime;
+
+        @Schema(description = "变更前状态")
+        private Integer beforeStatus;
+
+        @Schema(description = "变更前状态名称")
+        private String beforeStatusName;
+
+        @Schema(description = "变更后状态")
+        private Integer afterStatus;
+
+        @Schema(description = "变更后状态名称")
+        private String afterStatusName;
+
+        @Schema(description = "变更前进度")
+        private Integer beforeProgress;
+
+        @Schema(description = "变更后进度")
+        private Integer afterProgress;
     }
 }

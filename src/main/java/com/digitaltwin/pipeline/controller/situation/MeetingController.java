@@ -5,7 +5,9 @@ import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.situation.MeetingDetailVO;
 import com.digitaltwin.pipeline.entity.situation.MeetingDecision;
+import com.digitaltwin.pipeline.entity.situation.MeetingDecisionTrace;
 import com.digitaltwin.pipeline.entity.situation.MeetingSession;
+import com.digitaltwin.pipeline.entity.situation.MeetingSummary;
 import com.digitaltwin.pipeline.service.situation.MeetingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -88,5 +90,61 @@ public class MeetingController {
                                              @RequestParam(required = false) String remark) {
         meetingService.updateAttendeeStatus(id, status, remark);
         return Result.success();
+    }
+
+    @Operation(summary = "更新决策")
+    @PutMapping("/decision/{id}")
+    public Result<MeetingDecision> updateDecision(@PathVariable Long id,
+                                                  @RequestBody MeetingDecision decision,
+                                                  @RequestParam(required = false) String operatorName) {
+        return Result.success(meetingService.updateDecision(id, decision, operatorName));
+    }
+
+    @Operation(summary = "更新决策进度")
+    @PutMapping("/decision/{id}/progress")
+    public Result<Void> updateDecisionProgress(@PathVariable Long id,
+                                               @RequestParam(required = false) Integer progress,
+                                               @RequestParam(required = false) String result,
+                                               @RequestParam(required = false) String operatorName) {
+        meetingService.updateDecisionProgress(id, progress, result, operatorName);
+        return Result.success();
+    }
+
+    @Operation(summary = "验证确认决策")
+    @PostMapping("/decision/{id}/verify")
+    public Result<Void> verifyDecision(@PathVariable Long id,
+                                       @RequestParam(required = false) String verificationRemark,
+                                       @RequestParam String verificationPerson) {
+        meetingService.verifyDecision(id, verificationRemark, verificationPerson);
+        return Result.success();
+    }
+
+    @Operation(summary = "否决决策")
+    @PostMapping("/decision/{id}/veto")
+    public Result<Void> vetoDecision(@PathVariable Long id,
+                                     @RequestParam(required = false) String remark,
+                                     @RequestParam(required = false) String operatorName) {
+        meetingService.vetoDecision(id, remark, operatorName);
+        return Result.success();
+    }
+
+    @Operation(summary = "编辑纪要")
+    @PutMapping("/summary/{meetingId}")
+    public Result<MeetingSummary> editSummary(@PathVariable Long meetingId,
+                                              @RequestBody MeetingSummary summary,
+                                              @RequestParam(required = false) String editorName) {
+        return Result.success(meetingService.editSummary(meetingId, summary, editorName));
+    }
+
+    @Operation(summary = "决议追踪时间线")
+    @GetMapping("/decision/{id}/traces")
+    public Result<List<MeetingDecisionTrace>> getDecisionTraces(@PathVariable Long id) {
+        return Result.success(meetingService.getDecisionTraces(id));
+    }
+
+    @Operation(summary = "决议落地总览")
+    @GetMapping("/{id}/decision-tracking")
+    public Result<MeetingDetailVO> getDecisionTracking(@PathVariable Long id) {
+        return Result.success(meetingService.getDecisionTrackingView(id));
     }
 }

@@ -35,6 +35,7 @@ public class MeetingServiceImpl implements MeetingService {
     private final MeetingAttendeeMapper attendeeMapper;
     private final MeetingDecisionMapper decisionMapper;
     private final MeetingSummaryMapper summaryMapper;
+    private final MeetingDecisionTraceMapper decisionTraceMapper;
     private final SysDepartmentMapper departmentMapper;
     private final SysUserMapper userMapper;
 
@@ -51,6 +52,7 @@ public class MeetingServiceImpl implements MeetingService {
     private static final String[] DECISION_STATUS_COLORS = {"#eab308", "#3b82f6", "#22c55e", "#94a3b8"};
     private static final String[] PRIORITY_NAMES = {"", "低", "中", "高", "紧急"};
     private static final String[] SUMMARY_STATUS_NAMES = {"", "草稿", "已审核", "已发布"};
+    private static final String[] TRACE_TYPE_NAMES = {"", "进度更新", "状态变更", "备注补充", "验证确认"};
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -444,6 +446,281 @@ public class MeetingServiceImpl implements MeetingService {
         attendeeMapper.updateById(attendee);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MeetingDecision updateDecision(Long decisionId, MeetingDecision decision, String operatorName) {
+        MeetingDecision existing = decisionMapper.selectById(decisionId);
+        if (existing == null) {
+            throw new BusinessException("决议不存在");
+        }
+
+        Integer beforeStatus = existing.getStatus();
+        boolean statusChanged = decision.getStatus() != null && !decision.getStatus().equals(existing.getStatus());
+
+        if (decision.getTitle() != null) {
+            existing.setTitle(decision.getTitle());
+        }
+        if (decision.getContent() != null) {
+            existing.setContent(decision.getContent());
+        }
+        if (decision.getDetail() != null) {
+            existing.setDetail(decision.getDetail());
+        }
+        if (decision.getDecisionType() != null) {
+            existing.setDecisionType(decision.getDecisionType());
+        }
+        if (decision.getPriority() != null) {
+            existing.setPriority(decision.getPriority());
+        }
+        if (decision.getStatus() != null) {
+            existing.setStatus(decision.getStatus());
+            if (decision.getStatus() == 2) {
+                existing.setFinishTime(LocalDateTime.now());
+            }
+        }
+        if (decision.getExecutorDeptId() != null) {
+            existing.setExecutorDeptId(decision.getExecutorDeptId());
+        }
+        if (decision.getExecutorDeptName() != null) {
+            existing.setExecutorDeptName(decision.getExecutorDeptName());
+        }
+        if (decision.getExecutorId() != null) {
+            existing.setExecutorId(decision.getExecutorId());
+        }
+        if (decision.getExecutorName() != null) {
+            existing.setExecutorName(decision.getExecutorName());
+        }
+        if (decision.getDeadline() != null) {
+            existing.setDeadline(decision.getDeadline());
+        }
+        if (decision.getRemark() != null) {
+            existing.setRemark(decision.getRemark());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        existing.setLastUpdateTime(now);
+        existing.setLastUpdaterName(operatorName);
+
+        decisionMapper.updateById(existing);
+
+        MeetingDecisionTrace trace = new MeetingDecisionTrace();
+        trace.setDecisionId(decisionId);
+        trace.setMeetingId(existing.getMeetingId());
+        trace.setTraceType(statusChanged ? 2 : 3);
+        trace.setContent(statusChanged ? "决议状态变更及内容更新" : "决议内容更新");
+        trace.setOperatorName(operatorName);
+        trace.setOperationTime(now);
+        trace.setBeforeStatus(beforeStatus);
+        trace.setAfterStatus(existing.getStatus());
+        trace.setBeforeProgress(existing.getCompletionPercentage());
+        trace.setAfterProgress(existing.getCompletionPercentage());
+        decisionTraceMapper.insert(trace);
+
+        updateSummaryDecisionStats(existing.getMeetingId());
+
+        return existing;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateDecisionProgress(Long decisionId, Integer progress, String result, String operatorName) {
+        MeetingDecision decision = decisionMapper.selectById(decisionId);
+        if (decision == null) {
+            throw new BusinessException("决议不存在");
+        }
+
+        Integer beforeProgress = decision.getCompletionPercentage();
+        Integer beforeStatus = decision.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (progress != null) {
+            if (progress < 0) progress = 0;
+            if (progress > 100) progress = 100;
+            decision.setCompletionPercentage(progress);
+
+            if (progress == 100 && decision.getStatus() != 2) {
+                decision.setStatus(2);
+                decision.setFinishTime(now);
+            } else if (progress > 0 && progress < 100 && decision.getStatus() == 0) {
+                decision.setStatus(1);
+            }
+        }
+        if (result != null) {
+            decision.setActualResult(result);
+        }
+
+        if (decision.getDeadline() != null && now.isAfter(decision.getDeadline())
+                && decision.getStatus() != null && decision.getStatus() != 2) {
+            decision.setIsTimeout(1);
+        } else {
+            decision.setIsTimeout(0);
+        }
+
+        decision.setLastUpdateTime(now);
+        decision.setLastUpdaterName(operatorName);
+
+        decisionMapper.updateById(decision);
+
+        MeetingDecisionTrace trace = new MeetingDecisionTrace();
+        trace.setDecisionId(decisionId);
+        trace.setMeetingId(decision.getMeetingId());
+        trace.setTraceType(1);
+        trace.setContent("进度更新：" + (progress != null ? progress + "%" : "无变化") + (result != null ? "，落实结果：" + result : ""));
+        trace.setOperatorName(operatorName);
+        trace.setOperationTime(now);
+        trace.setBeforeStatus(beforeStatus);
+        trace.setAfterStatus(decision.getStatus());
+        trace.setBeforeProgress(beforeProgress);
+        trace.setAfterProgress(decision.getCompletionPercentage());
+        decisionTraceMapper.insert(trace);
+
+        updateSummaryDecisionStats(decision.getMeetingId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void verifyDecision(Long decisionId, String verificationRemark, String verificationPerson) {
+        MeetingDecision decision = decisionMapper.selectById(decisionId);
+        if (decision == null) {
+            throw new BusinessException("决议不存在");
+        }
+
+        Integer beforeStatus = decision.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+
+        decision.setVerificationPerson(verificationPerson);
+        decision.setVerificationTime(now);
+        decision.setVerificationRemark(verificationRemark);
+        decision.setLastUpdateTime(now);
+        decision.setLastUpdaterName(verificationPerson);
+
+        decisionMapper.updateById(decision);
+
+        MeetingDecisionTrace trace = new MeetingDecisionTrace();
+        trace.setDecisionId(decisionId);
+        trace.setMeetingId(decision.getMeetingId());
+        trace.setTraceType(4);
+        trace.setContent("验证确认：" + (verificationRemark != null ? verificationRemark : ""));
+        trace.setOperatorName(verificationPerson);
+        trace.setOperationTime(now);
+        trace.setBeforeStatus(beforeStatus);
+        trace.setAfterStatus(decision.getStatus());
+        trace.setBeforeProgress(decision.getCompletionPercentage());
+        trace.setAfterProgress(decision.getCompletionPercentage());
+        decisionTraceMapper.insert(trace);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void vetoDecision(Long decisionId, String remark, String operatorName) {
+        MeetingDecision decision = decisionMapper.selectById(decisionId);
+        if (decision == null) {
+            throw new BusinessException("决议不存在");
+        }
+
+        Integer beforeStatus = decision.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+
+        decision.setStatus(3);
+        decision.setRemark(remark);
+        decision.setLastUpdateTime(now);
+        decision.setLastUpdaterName(operatorName);
+
+        decisionMapper.updateById(decision);
+
+        MeetingDecisionTrace trace = new MeetingDecisionTrace();
+        trace.setDecisionId(decisionId);
+        trace.setMeetingId(decision.getMeetingId());
+        trace.setTraceType(2);
+        trace.setContent("决议被否决：" + (remark != null ? remark : ""));
+        trace.setOperatorName(operatorName);
+        trace.setOperationTime(now);
+        trace.setBeforeStatus(beforeStatus);
+        trace.setAfterStatus(3);
+        trace.setBeforeProgress(decision.getCompletionPercentage());
+        trace.setAfterProgress(decision.getCompletionPercentage());
+        decisionTraceMapper.insert(trace);
+
+        updateSummaryDecisionStats(decision.getMeetingId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MeetingSummary editSummary(Long meetingId, MeetingSummary summary, String editorName) {
+        MeetingSummary existing = summaryMapper.selectOne(
+                new LambdaQueryWrapper<MeetingSummary>()
+                        .eq(MeetingSummary::getMeetingId, meetingId)
+                        .last("LIMIT 1"));
+
+        if (existing == null) {
+            throw new BusinessException("会议纪要不存在，请先生成纪要");
+        }
+
+        if (summary.getTitle() != null) {
+            existing.setTitle(summary.getTitle());
+        }
+        if (summary.getSummaryContent() != null) {
+            existing.setSummaryContent(summary.getSummaryContent());
+        }
+        if (summary.getKeyPoints() != null) {
+            existing.setKeyPoints(summary.getKeyPoints());
+        }
+        if (summary.getDecisions() != null) {
+            existing.setDecisions(summary.getDecisions());
+        }
+        if (summary.getAttendeesList() != null) {
+            existing.setAttendeesList(summary.getAttendeesList());
+        }
+        if (summary.getAbsentees() != null) {
+            existing.setAbsentees(summary.getAbsentees());
+        }
+        if (summary.getFollowUpItems() != null) {
+            existing.setFollowUpItems(summary.getFollowUpItems());
+        }
+        if (summary.getStatus() != null) {
+            existing.setStatus(summary.getStatus());
+        }
+        if (summary.getApproverName() != null) {
+            existing.setApproverName(summary.getApproverName());
+        }
+        if (summary.getAttachFileIds() != null) {
+            existing.setAttachFileIds(summary.getAttachFileIds());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        existing.setEditorName(editorName);
+        existing.setEditTime(now);
+        existing.setVersion(existing.getVersion() + 1);
+
+        summaryMapper.updateById(existing);
+
+        updateSummaryDecisionStats(meetingId);
+
+        return existing;
+    }
+
+    @Override
+    public List<MeetingDecisionTrace> getDecisionTraces(Long decisionId) {
+        return decisionTraceMapper.selectList(
+                new LambdaQueryWrapper<MeetingDecisionTrace>()
+                        .eq(MeetingDecisionTrace::getDecisionId, decisionId)
+                        .orderByDesc(MeetingDecisionTrace::getOperationTime));
+    }
+
+    @Override
+    public MeetingDetailVO getDecisionTrackingView(Long meetingId) {
+        MeetingDetailVO detail = getDetail(meetingId);
+
+        if (detail.getDecisions() != null) {
+            for (MeetingDetailVO.DecisionVO decision : detail.getDecisions()) {
+                List<MeetingDecisionTrace> traces = getDecisionTraces(decision.getId());
+                decision.setTraces(traces.stream().map(this::toDecisionTraceVO).collect(Collectors.toList()));
+            }
+        }
+
+        return detail;
+    }
+
     private String generateMeetingCode() {
         String dateStr = LocalDateTime.now().format(DTF);
         String prefix = "MS-" + dateStr + "-";
@@ -524,6 +801,14 @@ public class MeetingServiceImpl implements MeetingService {
         vo.setRelatedTaskId(d.getRelatedTaskId());
         vo.setCreatorName(d.getCreatorName());
         vo.setRemark(d.getRemark());
+        vo.setActualResult(d.getActualResult());
+        vo.setCompletionPercentage(d.getCompletionPercentage());
+        vo.setIsTimeout(d.getIsTimeout());
+        vo.setLastUpdateTime(d.getLastUpdateTime());
+        vo.setLastUpdaterName(d.getLastUpdaterName());
+        vo.setVerificationPerson(d.getVerificationPerson());
+        vo.setVerificationTime(d.getVerificationTime());
+        vo.setVerificationRemark(d.getVerificationRemark());
         return vo;
     }
 
@@ -546,6 +831,15 @@ public class MeetingServiceImpl implements MeetingService {
         vo.setStatusName(s.getStatus() != null && s.getStatus() < SUMMARY_STATUS_NAMES.length
                 ? SUMMARY_STATUS_NAMES[s.getStatus()] : "未知");
         vo.setVersion(s.getVersion());
+        vo.setEditorName(s.getEditorName());
+        vo.setEditTime(s.getEditTime());
+        vo.setDecisionTotalCount(s.getDecisionTotalCount());
+        vo.setDecisionCompletedCount(s.getDecisionCompletedCount());
+        vo.setDecisionInProgressCount(s.getDecisionInProgressCount());
+        vo.setDecisionPendingCount(s.getDecisionPendingCount());
+        vo.setDecisionVetoedCount(s.getDecisionVetoedCount());
+        vo.setOverallCompletionRate(s.getOverallCompletionRate());
+        vo.setAttachFileIds(s.getAttachFileIds());
         return vo;
     }
 
@@ -609,5 +903,87 @@ public class MeetingServiceImpl implements MeetingService {
 
         timeline.sort(Comparator.comparing(MeetingDetailVO.MeetingTimelineItem::getTime));
         return timeline;
+    }
+
+    private MeetingDetailVO.DecisionTraceVO toDecisionTraceVO(MeetingDecisionTrace t) {
+        MeetingDetailVO.DecisionTraceVO vo = new MeetingDetailVO.DecisionTraceVO();
+        vo.setId(t.getId());
+        vo.setDecisionId(t.getDecisionId());
+        vo.setMeetingId(t.getMeetingId());
+        vo.setTraceType(t.getTraceType());
+        vo.setTraceTypeName(t.getTraceType() != null && t.getTraceType() < TRACE_TYPE_NAMES.length
+                ? TRACE_TYPE_NAMES[t.getTraceType()] : "未知");
+        vo.setContent(t.getContent());
+        vo.setOperatorName(t.getOperatorName());
+        vo.setOperationTime(t.getOperationTime());
+        vo.setBeforeStatus(t.getBeforeStatus());
+        vo.setBeforeStatusName(t.getBeforeStatus() != null && t.getBeforeStatus() < DECISION_STATUS_NAMES.length
+                ? DECISION_STATUS_NAMES[t.getBeforeStatus()] : "");
+        vo.setAfterStatus(t.getAfterStatus());
+        vo.setAfterStatusName(t.getAfterStatus() != null && t.getAfterStatus() < DECISION_STATUS_NAMES.length
+                ? DECISION_STATUS_NAMES[t.getAfterStatus()] : "");
+        vo.setBeforeProgress(t.getBeforeProgress());
+        vo.setAfterProgress(t.getAfterProgress());
+        return vo;
+    }
+
+    private void updateSummaryDecisionStats(Long meetingId) {
+        MeetingSummary summary = summaryMapper.selectOne(
+                new LambdaQueryWrapper<MeetingSummary>()
+                        .eq(MeetingSummary::getMeetingId, meetingId)
+                        .last("LIMIT 1"));
+        if (summary == null) {
+            return;
+        }
+
+        List<MeetingDecision> decisions = decisionMapper.selectList(
+                new LambdaQueryWrapper<MeetingDecision>()
+                        .eq(MeetingDecision::getMeetingId, meetingId));
+
+        int totalCount = decisions.size();
+        int completedCount = 0;
+        int inProgressCount = 0;
+        int pendingCount = 0;
+        int vetoedCount = 0;
+        int totalProgress = 0;
+
+        for (MeetingDecision d : decisions) {
+            Integer status = d.getStatus();
+            if (status == null) {
+                pendingCount++;
+            } else {
+                switch (status) {
+                    case 0:
+                        pendingCount++;
+                        break;
+                    case 1:
+                        inProgressCount++;
+                        break;
+                    case 2:
+                        completedCount++;
+                        break;
+                    case 3:
+                        vetoedCount++;
+                        break;
+                    default:
+                        pendingCount++;
+                        break;
+                }
+            }
+            if (d.getCompletionPercentage() != null) {
+                totalProgress += d.getCompletionPercentage();
+            }
+        }
+
+        int overallRate = totalCount > 0 ? totalProgress / totalCount : 0;
+
+        summary.setDecisionTotalCount(totalCount);
+        summary.setDecisionCompletedCount(completedCount);
+        summary.setDecisionInProgressCount(inProgressCount);
+        summary.setDecisionPendingCount(pendingCount);
+        summary.setDecisionVetoedCount(vetoedCount);
+        summary.setOverallCompletionRate(overallRate);
+
+        summaryMapper.updateById(summary);
     }
 }

@@ -416,4 +416,252 @@ public class CommandDashboardServiceImpl implements CommandDashboardService {
             return null;
         }
     }
+
+    @Override
+    public CommandDashboardVO.EventDrillDownVO getEventDrillDown(Long eventId) {
+        EventIncident event = incidentMapper.selectById(eventId);
+        if (event == null) {
+            return null;
+        }
+
+        CommandDashboardVO.EventDrillDownVO vo = CommandDashboardVO.EventDrillDownVO.builder()
+                .eventId(event.getId())
+                .eventCode(event.getEventCode())
+                .title(event.getTitle())
+                .eventType(event.getEventType())
+                .eventTypeName(event.getEventType() != null && event.getEventType() < EVENT_TYPE_NAMES.length
+                        ? EVENT_TYPE_NAMES[event.getEventType()] : "事件")
+                .level(event.getEventLevel())
+                .levelName(EventLevelEnum.getLabel(event.getEventLevel()))
+                .levelColor(EventLevelEnum.getColor(event.getEventLevel()))
+                .status(event.getStatus())
+                .statusName(mapEventStatus(event.getStatus()))
+                .progress(event.getProgress() != null ? event.getProgress() : calcProgressByStatus(event.getStatus()))
+                .areaName(event.getAreaName() != null ? event.getAreaName() : event.getAreaCode())
+                .lng(event.getLng())
+                .lat(event.getLat())
+                .discoverTime(event.getDiscoverTime())
+                .durationText(calcDuration(event.getDiscoverTime()))
+                .build();
+
+        vo.setAffectedPipelines(buildAffectedPipelines(event));
+        vo.setRelatedAlarms(buildRelatedAlarms(event));
+        vo.setActiveWorkOrders(buildActiveWorkOrders(event));
+        vo.setLatestMeeting(buildLatestMeeting(event));
+        vo.setAffectedValves(buildAffectedValves(event));
+        vo.setDrillSummary(buildDrillSummary(event, vo));
+
+        return vo;
+    }
+
+    private List<CommandDashboardVO.DrillPipelineVO> buildAffectedPipelines(EventIncident event) {
+        List<CommandDashboardVO.DrillPipelineVO> list = new ArrayList<>();
+        Random rnd = new Random(event.getId() != null ? event.getId() : 1);
+        int count = 3 + rnd.nextInt(6);
+
+        String[] materials = {"球墨铸铁", "PE管", "钢管", "PVC", "玻璃钢"};
+        String[] statuses = {"正常运行", "减压运行", "停供", "抢修中"};
+
+        for (int i = 0; i < count; i++) {
+            int pipeType = event.getPipelineType() != null ? event.getPipelineType() : 1 + rnd.nextInt(7);
+            int diameter = 100 + rnd.nextInt(10) * 100;
+            BigDecimal length = new BigDecimal(50 + rnd.nextInt(500)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal distance = new BigDecimal(10 + rnd.nextInt(500)).setScale(2, RoundingMode.HALF_UP);
+            int status = 1 + rnd.nextInt(4);
+            int degree = distance.intValue() < 100 ? 3 : (distance.intValue() < 250 ? 2 : 1);
+
+            CommandDashboardVO.DrillPipelineVO vo = CommandDashboardVO.DrillPipelineVO.builder()
+                    .pipelineId(10000L + i)
+                    .pipelineCode(String.format("PL-%s-%04d", PipelineTypeEnum.getLabel(pipeType), 1001 + i))
+                    .pipelineType(pipeType)
+                    .typeName(PipelineTypeEnum.getLabel(pipeType))
+                    .startPoint(event.getAreaName() + "路北" + (i + 1) + "号")
+                    .endPoint(event.getAreaName() + "路南" + (i + 2) + "号")
+                    .lengthMeters(length)
+                    .diameter(diameter)
+                    .material(materials[rnd.nextInt(materials.length)])
+                    .status(status)
+                    .statusName(statuses[status - 1])
+                    .distanceFromEvent(distance)
+                    .isMainLine(i == 0 || rnd.nextBoolean())
+                    .affectedDegree(degree)
+                    .build();
+            list.add(vo);
+        }
+
+        list.sort((a, b) -> a.getDistanceFromEvent().compareTo(b.getDistanceFromEvent()));
+        return list;
+    }
+
+    private List<CommandDashboardVO.DrillAlarmVO> buildRelatedAlarms(EventIncident event) {
+        List<CommandDashboardVO.DrillAlarmVO> list = new ArrayList<>();
+        Random rnd = new Random((event.getId() != null ? event.getId() : 1) + 100);
+        int count = 2 + rnd.nextInt(4);
+
+        String[] alarmTypes = {"压力异常", "流量异常", "泄漏检测", "水质异常", "温度异常", "振动异常"};
+        String[] statusNames = {"待处理", "处理中", "已处理", "已忽略"};
+        String[] locations = {"主管线中段", "分支节点A", "阀门井B3", "调压站C2", "用户端D5"};
+
+        for (int i = 0; i < count; i++) {
+            int level = 1 + rnd.nextInt(4);
+            int status = 1 + rnd.nextInt(3);
+            BigDecimal value = new BigDecimal(50 + rnd.nextInt(100)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal threshold = new BigDecimal(80).setScale(2, RoundingMode.HALF_UP);
+            LocalDateTime alarmTime = LocalDateTime.now().minusMinutes(10 + rnd.nextInt(120));
+
+            CommandDashboardVO.DrillAlarmVO vo = CommandDashboardVO.DrillAlarmVO.builder()
+                    .alarmId(20000L + i)
+                    .alarmCode(String.format("AL-%s-%04d", event.getEventCode() != null ? event.getEventCode() : "EV", 1001 + i))
+                    .alarmType(i + 1)
+                    .typeName(alarmTypes[i % alarmTypes.length])
+                    .level(level)
+                    .levelName(EventLevelEnum.getLabel(level))
+                    .levelColor(EventLevelEnum.getColor(level))
+                    .status(status)
+                    .statusName(statusNames[status - 1])
+                    .alarmTime(alarmTime.format(DTF))
+                    .locationDescription(locations[i % locations.length])
+                    .sensorCode(String.format("SN-%05d", 1000 + i))
+                    .value(value)
+                    .threshold(threshold)
+                    .build();
+            list.add(vo);
+        }
+
+        list.sort((a, b) -> Integer.compare(b.getLevel(), a.getLevel()));
+        return list;
+    }
+
+    private List<CommandDashboardVO.DrillWorkOrderVO> buildActiveWorkOrders(EventIncident event) {
+        List<CommandDashboardVO.DrillWorkOrderVO> list = new ArrayList<>();
+        Random rnd = new Random((event.getId() != null ? event.getId() : 1) + 200);
+        int count = 1 + rnd.nextInt(4);
+
+        String[] titles = {"现场抢修作业", "阀门启闭操作", "管线检测排查", "用户通知安抚", "恢复供水供气"};
+        String[] statusNames = {"待接单", "处理中", "已派单", "已完成"};
+        String[] priorityNames = {"低", "中", "高", "紧急"};
+        String[] assignees = {"张工", "李队", "王班长", "赵组长", "孙师傅"};
+        String[] depts = {"抢修一队", "抢修二队", "运维部", "客服部", "调度中心"};
+
+        for (int i = 0; i < count; i++) {
+            int status = 1 + rnd.nextInt(3);
+            int priority = 2 + rnd.nextInt(3);
+            int progress = status == 1 ? 0 : (status == 2 ? 20 + rnd.nextInt(60) : 100);
+            LocalDateTime createTime = LocalDateTime.now().minusMinutes(30 + rnd.nextInt(180));
+            LocalDateTime estimatedFinish = createTime.plusMinutes(60 + rnd.nextInt(180));
+
+            CommandDashboardVO.DrillWorkOrderVO vo = CommandDashboardVO.DrillWorkOrderVO.builder()
+                    .workOrderId(30000L + i)
+                    .workOrderCode(String.format("WO-%s-%04d", event.getEventCode() != null ? event.getEventCode() : "EV", 1001 + i))
+                    .title(titles[i % titles.length])
+                    .status(status)
+                    .statusName(statusNames[status - 1])
+                    .progress(progress)
+                    .priority(priority)
+                    .priorityName(priorityNames[priority - 1])
+                    .assignee(assignees[rnd.nextInt(assignees.length)])
+                    .assigneeDept(depts[rnd.nextInt(depts.length)])
+                    .createTime(createTime.format(DTF))
+                    .estimatedFinishTime(estimatedFinish.format(DTF))
+                    .currentLocation(event.getAreaName() + "施工现场" + (i + 1) + "号点")
+                    .build();
+            list.add(vo);
+        }
+
+        list.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
+        return list;
+    }
+
+    private CommandDashboardVO.DrillMeetingVO buildLatestMeeting(EventIncident event) {
+        Random rnd = new Random((event.getId() != null ? event.getId() : 1) + 300);
+        String[] types = {"紧急会商", "方案评审", "进度汇报", "协调调度"};
+        String[] statusNames = {"未开始", "进行中", "已结束", "已取消"};
+        String[] decisions = {
+                "启动三级响应，增派抢修力量",
+                "关闭B3、C5阀门，隔离事故段",
+                "通知周边3个社区做好停水准备",
+                "协调市政洒水车支援送水",
+                "批准带压堵漏方案，立即实施"
+        };
+
+        int type = 1 + rnd.nextInt(4);
+        int status = 1 + rnd.nextInt(3);
+        int duration = 15 + rnd.nextInt(75);
+        int attendees = 5 + rnd.nextInt(15);
+        int decisionsCount = 1 + rnd.nextInt(4);
+        LocalDateTime startTime = LocalDateTime.now().minusMinutes(status == 2 ? rnd.nextInt(60) : 60 + rnd.nextInt(240));
+
+        return CommandDashboardVO.DrillMeetingVO.builder()
+                .meetingId(40001L)
+                .meetingCode(String.format("MT-%s-001", event.getEventCode() != null ? event.getEventCode() : "EV"))
+                .title(event.getTitle() + " - 应急处置会商")
+                .meetingType(type)
+                .typeName(types[type - 1])
+                .status(status)
+                .statusName(statusNames[status - 1])
+                .startTime(startTime.format(DTF))
+                .durationMinutes(duration)
+                .attendeeCount(attendees)
+                .decisionCount(decisionsCount)
+                .latestDecision(decisions[rnd.nextInt(decisions.length)])
+                .build();
+    }
+
+    private List<CommandDashboardVO.DrillValveVO> buildAffectedValves(EventIncident event) {
+        List<CommandDashboardVO.DrillValveVO> list = new ArrayList<>();
+        Random rnd = new Random((event.getId() != null ? event.getId() : 1) + 400);
+        int count = 3 + rnd.nextInt(8);
+
+        String[] valveTypes = {"闸阀", "蝶阀", "球阀", "截止阀", "止回阀"};
+        String[] statusNames = {"开", "关"};
+        String[] opStatusNames = {"正常", "待操作", "已操作"};
+        String[] locations = {"主管线节点A", "支线入口B", "调压站前", "用户分界点", "消防接驳点"};
+
+        for (int i = 0; i < count; i++) {
+            int currentStatus = rnd.nextBoolean() ? 1 : 2;
+            int opStatus = rnd.nextInt(3);
+            BigDecimal distance = new BigDecimal(20 + rnd.nextInt(400)).setScale(2, RoundingMode.HALF_UP);
+
+            CommandDashboardVO.DrillValveVO vo = CommandDashboardVO.DrillValveVO.builder()
+                    .valveId(50000L + i)
+                    .valveCode(String.format("VL-%s-%04d", event.getAreaCode() != null ? event.getAreaCode() : "AR", 1001 + i))
+                    .valveName(event.getAreaName() + (i + 1) + "号阀")
+                    .valveType(1 + rnd.nextInt(5))
+                    .typeName(valveTypes[rnd.nextInt(valveTypes.length)])
+                    .currentStatus(currentStatus)
+                    .statusName(statusNames[currentStatus - 1])
+                    .diameter(100 + rnd.nextInt(6) * 100)
+                    .location(locations[i % locations.length])
+                    .distanceFromEvent(distance)
+                    .operationStatus(opStatus)
+                    .build();
+            list.add(vo);
+        }
+
+        list.sort((a, b) -> a.getDistanceFromEvent().compareTo(b.getDistanceFromEvent()));
+        return list;
+    }
+
+    private CommandDashboardVO.DrillSummaryVO buildDrillSummary(
+            EventIncident event, CommandDashboardVO.EventDrillDownVO vo) {
+        int pipelineCount = vo.getAffectedPipelines() != null ? vo.getAffectedPipelines().size() : 0;
+        int valveCount = vo.getAffectedValves() != null ? vo.getAffectedValves().size() : 0;
+        int alarmCount = vo.getRelatedAlarms() != null ? vo.getRelatedAlarms().size() : 0;
+        int workOrderCount = vo.getActiveWorkOrders() != null ? vo.getActiveWorkOrders().size() : 0;
+        int affectedUsers = event.getEstimatedAffectedUsers() != null ? event.getEstimatedAffectedUsers() : 100;
+        int recoveryTime = 60 + new Random(event.getId() != null ? event.getId() : 1).nextInt(180);
+        int riskLevel = event.getEventLevel() != null ? event.getEventLevel() : 2;
+
+        return CommandDashboardVO.DrillSummaryVO.builder()
+                .affectedPipelineCount(pipelineCount)
+                .affectedValveCount(valveCount)
+                .activeAlarmCount(alarmCount)
+                .activeWorkOrderCount(workOrderCount)
+                .totalAffectedUsers(affectedUsers)
+                .estimatedRecoveryTime(recoveryTime)
+                .overallRiskLevel(riskLevel)
+                .levelName(EventLevelEnum.getLabel(riskLevel))
+                .levelColor(EventLevelEnum.getColor(riskLevel))
+                .build();
+    }
 }

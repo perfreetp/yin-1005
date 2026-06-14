@@ -85,4 +85,37 @@ public class PlanExecutionRecord extends BaseEntity {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "卡点环节描述")
+    private String stuckPoint;
+
+    @Schema(description = "超时原因分析")
+    private String stuckReason;
+
+    @Schema(description = "改进措施")
+    private String improvementMeasures;
+
+    @Schema(description = "导出时间")
+    private LocalDateTime exportTime;
+
+    @Schema(description = "导出人")
+    private String exporterName;
+
+    @Schema(description = "导出次数")
+    private Integer exportCount;
+
+    @Schema(description = "总阀门数")
+    private Integer totalValveCount;
+
+    @Schema(description = "成功阀门数")
+    private Integer successValveCount;
+
+    @Schema(description = "失败阀门数")
+    private Integer failValveCount;
+
+    @Schema(description = "准时阀门数")
+    private Integer onTimeValveCount;
+
+    @Schema(description = "超时阀门数")
+    private Integer timeoutValveCount;
 }

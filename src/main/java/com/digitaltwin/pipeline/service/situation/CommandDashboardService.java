@@ -7,4 +7,6 @@ import java.util.List;
 public interface CommandDashboardService {
 
     CommandDashboardVO getDashboard(String areaCode, Integer minLevel, List<Integer> eventTypes);
+
+    CommandDashboardVO.EventDrillDownVO getEventDrillDown(Long eventId);
 }

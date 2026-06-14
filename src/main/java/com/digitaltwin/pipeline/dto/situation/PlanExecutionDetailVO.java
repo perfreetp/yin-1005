@@ -3,6 +3,7 @@ package com.digitaltwin.pipeline.dto.situation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -91,8 +92,44 @@ public class PlanExecutionDetailVO {
     @Schema(description = "备注")
     private String remark;
 
+    @Schema(description = "卡点环节描述")
+    private String stuckPoint;
+
+    @Schema(description = "超时原因分析")
+    private String stuckReason;
+
+    @Schema(description = "改进措施")
+    private String improvementMeasures;
+
+    @Schema(description = "导出时间")
+    private LocalDateTime exportTime;
+
+    @Schema(description = "导出人")
+    private String exporterName;
+
+    @Schema(description = "导出次数")
+    private Integer exportCount;
+
+    @Schema(description = "总阀门数")
+    private Integer totalValveCount;
+
+    @Schema(description = "成功阀门数")
+    private Integer successValveCount;
+
+    @Schema(description = "失败阀门数")
+    private Integer failValveCount;
+
+    @Schema(description = "准时阀门数")
+    private Integer onTimeValveCount;
+
+    @Schema(description = "超时阀门数")
+    private Integer timeoutValveCount;
+
     @Schema(description = "阀门操作清单")
     private List<ValveOperationVO> valveOperations;
+
+    @Schema(description = "超时卡点分析")
+    private ExecutionStuckAnalysisVO stuckAnalysis;
 
     @Schema(description = "执行时间轴")
     private List<TimelineItemVO> timeline;
@@ -181,6 +218,42 @@ public class PlanExecutionDetailVO {
 
         @Schema(description = "备注")
         private String remark;
+
+        @Schema(description = "现场确认人姓名")
+        private String confirmerName;
+
+        @Schema(description = "确认时间")
+        private LocalDateTime confirmTime;
+
+        @Schema(description = "确认方式：1-远程 2-现场巡检 3-视频确认 4-传感器反馈")
+        private Integer confirmMethod;
+
+        @Schema(description = "确认方式名称")
+        private String confirmMethodName;
+
+        @Schema(description = "现场照片ID，逗号分隔")
+        private String photoIds;
+
+        @Schema(description = "操作前压力")
+        private BigDecimal beforePressure;
+
+        @Schema(description = "操作后压力")
+        private BigDecimal afterPressure;
+
+        @Schema(description = "是否超时：0否1是")
+        private Integer isTimeout;
+
+        @Schema(description = "超时分钟数")
+        private Integer timeoutMinutes;
+
+        @Schema(description = "失败分类：1-阀门故障 2-操作失误 3-通讯故障 4-其他")
+        private Integer failCategory;
+
+        @Schema(description = "失败分类名称")
+        private String failCategoryName;
+
+        @Schema(description = "实际操作备注")
+        private String actualRemark;
     }
 
     @Data
@@ -319,5 +392,75 @@ public class PlanExecutionDetailVO {
 
         @Schema(description = "复盘时间")
         private LocalDateTime reviewTime;
+    }
+
+    @Data
+    @Schema(description = "超时卡点分析VO")
+    public static class ExecutionStuckAnalysisVO {
+
+        @Schema(description = "总步骤数")
+        private Integer totalSteps;
+
+        @Schema(description = "卡点步骤数")
+        private Integer stuckStepCount;
+
+        @Schema(description = "平均步骤耗时（分钟）")
+        private BigDecimal avgStepDurationMinutes;
+
+        @Schema(description = "最长步骤耗时（分钟）")
+        private Integer maxStepDurationMinutes;
+
+        @Schema(description = "卡点步骤列表")
+        private List<StuckStepItem> stuckStepList;
+
+        @Schema(description = "根因分析")
+        private String rootCauseAnalysis;
+
+        @Schema(description = "优化建议")
+        private String suggestion;
+    }
+
+    @Data
+    @Schema(description = "卡点步骤项")
+    public static class StuckStepItem {
+
+        @Schema(description = "步骤序号")
+        private Integer stepIndex;
+
+        @Schema(description = "阀门名称")
+        private String valveName;
+
+        @Schema(description = "阀门编号")
+        private String valveCode;
+
+        @Schema(description = "计划耗时（分钟）")
+        private Integer plannedDuration;
+
+        @Schema(description = "实际耗时（分钟）")
+        private Integer actualDuration;
+
+        @Schema(description = "偏差（分钟）")
+        private Integer deviation;
+
+        @Schema(description = "是否超时：0否1是")
+        private Integer isTimeout;
+
+        @Schema(description = "超时分钟数")
+        private Integer timeoutMinutes;
+
+        @Schema(description = "卡点原因")
+        private String stuckReason;
+
+        @Schema(description = "失败分类：1-阀门故障 2-操作失误 3-通讯故障 4-其他")
+        private Integer failCategory;
+
+        @Schema(description = "失败分类名称")
+        private String failCategoryName;
+
+        @Schema(description = "确认人姓名")
+        private String confirmerName;
+
+        @Schema(description = "确认时间")
+        private LocalDateTime confirmTime;
     }
 }

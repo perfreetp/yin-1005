@@ -77,4 +77,31 @@ public class InsertionTask extends BaseEntity {
 
     @Schema(description = "操作人姓名")
     private String operatorName;
+
+    @Schema(description = "冲突等级：1-无冲突 2-轻微 3-中等 4-严重")
+    private Integer conflictLevel;
+
+    @Schema(description = "冲突描述")
+    private String conflictDescription;
+
+    @Schema(description = "备选方案JSON")
+    private String alternativePlans;
+
+    @Schema(description = "回滚状态：0-未回滚 1-可回滚 2-已回滚 3-回滚失败")
+    private Integer rollbackStatus;
+
+    @Schema(description = "原排班快照（完整JSON，用于回滚）")
+    private String originalScheduleSnapshot;
+
+    @Schema(description = "同步状态：0-未同步 1-同步中 2-已同步 3-同步失败")
+    private Integer syncStatus;
+
+    @Schema(description = "同步时间")
+    private LocalDateTime syncTime;
+
+    @Schema(description = "日历事件ID")
+    private String calendarEventId;
+
+    @Schema(description = "受影响人员ID，逗号分隔")
+    private String affectedPersonIds;
 }

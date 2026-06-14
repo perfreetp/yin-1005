@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -73,4 +74,34 @@ public class ValveOperationRecord extends BaseEntity {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "现场确认人姓名")
+    private String confirmerName;
+
+    @Schema(description = "确认时间")
+    private LocalDateTime confirmTime;
+
+    @Schema(description = "确认方式：1-远程 2-现场巡检 3-视频确认 4-传感器反馈")
+    private Integer confirmMethod;
+
+    @Schema(description = "现场照片ID，逗号分隔")
+    private String photoIds;
+
+    @Schema(description = "操作前压力")
+    private BigDecimal beforePressure;
+
+    @Schema(description = "操作后压力")
+    private BigDecimal afterPressure;
+
+    @Schema(description = "是否超时：0否1是")
+    private Integer isTimeout;
+
+    @Schema(description = "超时分钟数")
+    private Integer timeoutMinutes;
+
+    @Schema(description = "失败分类：1-阀门故障 2-操作失误 3-通讯故障 4-其他")
+    private Integer failCategory;
+
+    @Schema(description = "实际操作备注")
+    private String actualRemark;
 }

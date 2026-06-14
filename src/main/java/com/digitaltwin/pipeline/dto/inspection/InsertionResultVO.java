@@ -56,6 +56,15 @@ public class InsertionResultVO {
 
         @Schema(description = "被调整的任务列表")
         private List<AdjustedTaskVO> adjustedTasks;
+
+        @Schema(description = "具体冲突项列表")
+        private List<ConflictItemVO> conflictItems;
+
+        @Schema(description = "加班时长（小时）")
+        private BigDecimal overtimeHours;
+
+        @Schema(description = "工作量变化百分比")
+        private Integer workloadChangePercent;
     }
 
     @Data
@@ -88,6 +97,29 @@ public class InsertionResultVO {
     }
 
     @Data
+    @Schema(description = "冲突项VO")
+    public static class ConflictItemVO {
+
+        @Schema(description = "冲突类型：1-人员冲突 2-车辆冲突 3-时段重叠 4-技能不匹配 5-超时风险 6-跨区域过远")
+        private Integer conflictType;
+
+        @Schema(description = "冲突等级：1-轻微 2-中等 3-严重")
+        private Integer conflictLevel;
+
+        @Schema(description = "冲突描述")
+        private String description;
+
+        @Schema(description = "受影响的任务ID")
+        private Long affectedTaskId;
+
+        @Schema(description = "受影响的任务名称")
+        private String affectedTaskName;
+
+        @Schema(description = "调整建议")
+        private String suggestion;
+    }
+
+    @Data
     @Schema(description = "建议方案VO")
     public static class SuggestionPlanVO {
 
@@ -105,5 +137,20 @@ public class InsertionResultVO {
 
         @Schema(description = "是否推荐")
         private Boolean recommended;
+
+        @Schema(description = "冲突等级")
+        private Integer conflictLevel;
+
+        @Schema(description = "冲突数量")
+        private Integer conflictCount;
+
+        @Schema(description = "预计成本增加")
+        private BigDecimal estimatedCostIncrease;
+
+        @Schema(description = "是否推荐方案")
+        private Boolean isRecommended;
+
+        @Schema(description = "风险说明")
+        private String riskDescription;
     }
 }

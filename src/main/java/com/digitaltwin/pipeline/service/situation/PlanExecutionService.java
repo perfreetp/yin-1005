@@ -22,4 +22,12 @@ public interface PlanExecutionService {
     PlanExecutionDetailVO generateReplayAnalysis(Long executionId, String reviewerName);
 
     PageResult<PlanExecutionRecord> executionPage(PageQuery query, Integer status, Integer strategyType, String keyword);
+
+    PlanExecutionDetailVO.ExecutionStuckAnalysisVO getStuckAnalysis(Long executionId);
+
+    PlanExecutionDetailVO confirmValveOperation(Long recordId, String confirmerName, Integer confirmMethod, String remark);
+
+    PlanExecutionDetailVO getFullExecutionRecord(Long executionId);
+
+    byte[] exportExecutionRecord(Long executionId, String exporterName);
 }

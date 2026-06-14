@@ -26,4 +26,10 @@ public class CommandDashboardController {
             @RequestParam(required = false) List<Integer> eventTypes) {
         return Result.success(commandDashboardService.getDashboard(areaCode, minLevel, eventTypes));
     }
+
+    @Operation(summary = "事件联动钻取详情（受影响管线/告警/工单/会商/阀门+汇总统计）")
+    @GetMapping("/event/{eventId}/drilldown")
+    public Result<CommandDashboardVO.EventDrillDownVO> eventDrillDown(@PathVariable Long eventId) {
+        return Result.success(commandDashboardService.getEventDrillDown(eventId));
+    }
 }

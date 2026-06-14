@@ -73,4 +73,28 @@ public class MeetingDecision extends BaseEntity {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "实际落实结果/完成情况描述")
+    private String actualResult;
+
+    @Schema(description = "完成百分比 0-100")
+    private Integer completionPercentage;
+
+    @Schema(description = "是否超时：0否1是")
+    private Integer isTimeout;
+
+    @Schema(description = "最后更新时间")
+    private LocalDateTime lastUpdateTime;
+
+    @Schema(description = "最后更新人")
+    private String lastUpdaterName;
+
+    @Schema(description = "验证人")
+    private String verificationPerson;
+
+    @Schema(description = "验证时间")
+    private LocalDateTime verificationTime;
+
+    @Schema(description = "验证意见")
+    private String verificationRemark;
 }

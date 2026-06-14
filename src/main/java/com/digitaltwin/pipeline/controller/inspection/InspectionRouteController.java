@@ -3,8 +3,10 @@ package com.digitaltwin.pipeline.controller.inspection;
 import com.digitaltwin.pipeline.common.PageResult;
 import com.digitaltwin.pipeline.common.Result;
 import com.digitaltwin.pipeline.dto.inspection.AdvancedInspectionScheduleDTO;
+import com.digitaltwin.pipeline.dto.inspection.DayScheduleVO;
 import com.digitaltwin.pipeline.dto.inspection.InsertionResultVO;
 import com.digitaltwin.pipeline.dto.inspection.InspectionRouteQueryDTO;
+import com.digitaltwin.pipeline.dto.inspection.RollbackResultVO;
 import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleDTO;
 import com.digitaltwin.pipeline.dto.inspection.SmartInspectionScheduleQueryDTO;
 import com.digitaltwin.pipeline.entity.inspection.InsertionTask;
@@ -106,5 +108,47 @@ public class InspectionRouteController {
     @GetMapping("/change-logs")
     public Result<List<ScheduleChangeLog>> getChangeLogs(@RequestParam(required = false) String date) {
         return Result.success(rescheduleService.getDayChangeLogs(date));
+    }
+
+    @Operation(summary = "【临时插单增强】带冲突检测的插单（返回冲突评估+3套方案）")
+    @PostMapping("/insert-task-conflict")
+    public Result<InsertionResultVO> insertTaskConflict(@RequestBody InsertionTask task) {
+        return Result.success(rescheduleService.insertTaskWithConflictCheck(task));
+    }
+
+    @Operation(summary = "【临时插单增强】一键回滚（根据变更日志ID回滚）")
+    @PostMapping("/rollback/{changeLogId}")
+    public Result<RollbackResultVO> rollbackInsertion(@PathVariable Long changeLogId,
+                                                       @RequestParam(required = false) String operatorName) {
+        return Result.success(rescheduleService.rollbackInsertion(changeLogId, operatorName));
+    }
+
+    @Operation(summary = "【临时插单增强】冲突预检")
+    @GetMapping("/check-conflicts")
+    public Result<List<InsertionResultVO.ConflictItemVO>> checkConflicts(InsertionTask task,
+                                                                          @RequestParam Long teamId) {
+        return Result.success(rescheduleService.checkConflicts(task, teamId));
+    }
+
+    @Operation(summary = "【临时插单增强】同步到日程")
+    @PostMapping("/sync-calendar")
+    public Result<Boolean> syncToCalendar(@RequestParam Long changeLogId,
+                                           @RequestParam(required = false) String operatorName) {
+        return Result.success(rescheduleService.syncToCalendar(changeLogId, operatorName));
+    }
+
+    @Operation(summary = "【临时插单增强】获取当日日程视图")
+    @GetMapping("/day-schedule")
+    public Result<DayScheduleVO> getDaySchedule(@RequestParam(required = false) String date,
+                                                 @RequestParam(required = false) List<Long> teamIds) {
+        return Result.success(rescheduleService.getDaySchedule(date, teamIds));
+    }
+
+    @Operation(summary = "【临时插单增强】应用备选方案")
+    @PostMapping("/apply-alternative")
+    public Result<InsertionResultVO> applyAlternativePlan(@RequestParam Long insertionTaskId,
+                                                           @RequestParam Integer planIndex,
+                                                           @RequestParam(required = false) String operatorName) {
+        return Result.success(rescheduleService.applyAlternativePlan(insertionTaskId, planIndex, operatorName));
     }
 }

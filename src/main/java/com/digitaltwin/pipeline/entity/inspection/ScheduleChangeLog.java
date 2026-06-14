@@ -58,4 +58,22 @@ public class ScheduleChangeLog extends BaseEntity {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "冲突等级")
+    private Integer conflictLevel;
+
+    @Schema(description = "是否回滚操作：0否1是")
+    private Integer isRollback;
+
+    @Schema(description = "回滚对应的原日志ID")
+    private Long rollbackFromLogId;
+
+    @Schema(description = "同步目标：calendar/im/email 等，JSON数组")
+    private String syncTargets;
+
+    @Schema(description = "可回滚有效期（分钟）")
+    private Integer rollbackValidMinutes;
+
+    @Schema(description = "操作人电话")
+    private String operatorPhone;
 }

@@ -55,4 +55,31 @@ public class MeetingSummary extends BaseEntity {
 
     @Schema(description = "版本号")
     private Integer version;
+
+    @Schema(description = "编辑人")
+    private String editorName;
+
+    @Schema(description = "最后编辑时间")
+    private LocalDateTime editTime;
+
+    @Schema(description = "决议总数")
+    private Integer decisionTotalCount;
+
+    @Schema(description = "已完成决议数")
+    private Integer decisionCompletedCount;
+
+    @Schema(description = "进行中决议数")
+    private Integer decisionInProgressCount;
+
+    @Schema(description = "待执行决议数")
+    private Integer decisionPendingCount;
+
+    @Schema(description = "已否决决议数")
+    private Integer decisionVetoedCount;
+
+    @Schema(description = "整体完成率(%)")
+    private Integer overallCompletionRate;
+
+    @Schema(description = "附件ID列表，逗号分隔")
+    private String attachFileIds;
 }
